@@ -1,92 +1,98 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import React, { useCallback } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Alert } from 'react-native';
-import { authService } from '../../../services/authService';
+import React, { useCallback, useState } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, Alert, Modal, FlatList } from 'react-native';
 import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  Package, 
-  Settings, 
-  LogOut, 
-  Calendar,
-  TrendingUp,
-  TrendingDown,
-  Edit2
+  TrendingUp, 
+  TrendingDown, 
+  Edit2,
+  X,
+  Check
 } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import KasirSidebar from '../../../components/KasirSidebar';
+import { inventoryService, Ingredient } from '../../../services/inventoryService';
+
+const WIDGET_STORAGE_KEY = 'DASHBOARD_WIDGET_IDS_KASIR';
 
 export default function KasirDashboard() {
+  const router = useRouter();
+  
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const ingData = await inventoryService.getIngredients();
+      setIngredients(ingData);
+      
+      const stored = await AsyncStorage.getItem(WIDGET_STORAGE_KEY);
+      if (stored) {
+        setSelectedWidgetIds(JSON.parse(stored));
+      } else {
+        const defaults = ingData.slice(0, 3).map(i => i.id);
+        setSelectedWidgetIds(defaults);
+        await AsyncStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify(defaults));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      loadData();
     }, [])
   );
 
-  const router = useRouter();
+  const openModal = () => {
+    setTempSelectedIds([...selectedWidgetIds]);
+    setModalVisible(true);
+  };
 
-  const handleLogout = () => {
-    Alert.alert(
-      "Konfirmasi Logout",
-      "Apakah Anda yakin ingin keluar?",
-      [
-        { text: "Batal", style: "cancel" },
-        { 
-          text: "Keluar", 
-          style: "destructive",
-          onPress: async () => {
-            await authService.signOut();
-            router.replace('/auth');
-          }
-        }
-      ]
-    );
+  const toggleSelection = (id: string) => {
+    if (tempSelectedIds.includes(id)) {
+      setTempSelectedIds(tempSelectedIds.filter((tid: string) => tid !== id));
+    } else {
+      if (tempSelectedIds.length >= 3) {
+        Alert.alert("Batas Maksimal", "Pilih maksimal 3 bahan untuk widget.");
+        return;
+      }
+      setTempSelectedIds([...tempSelectedIds, id]);
+    }
+  };
+
+  const saveWidgetSelection = async () => {
+    setSelectedWidgetIds(tempSelectedIds);
+    setModalVisible(false);
+    await AsyncStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify(tempSelectedIds));
+  };
+
+  const getPercentage = (item: Ingredient) => {
+    // Perbaikan: Jika item.current_stock adalah string, parseFloat dulu.
+    const current = typeof item.current_stock === 'number' ? item.current_stock : parseFloat(item.current_stock);
+    // Kita anggap 100 sebagai "penuh" untuk progress bar.
+    const max = 100; 
+    return Math.min((current / max) * 100, 100);
+  };
+
+  const getBarColor = (index: number) => {
+    const colors = ['bg-yellow-500', 'bg-pink-500', 'bg-blue-500'];
+    return colors[index % colors.length];
   };
 
   return (
     <View className="flex-1 flex-row bg-gray-50">
       
       {/* 1. SIDEBAR NAVIGATION */}
-      <View className="w-20 md:w-24 bg-white border-r border-gray-200 flex-col items-center py-8 justify-between">
-        <View className="items-center space-y-8">
-          {/* Menu Button */}
-          <TouchableOpacity className="p-2 rounded-xl hover:bg-gray-100">
-             <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
-             <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
-             <View className="w-6 h-0.5 bg-gray-800"></View>
-          </TouchableOpacity>
-
-          {/* Active Tab: Dashboard */}
-          <TouchableOpacity className="p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-300">
-            <LayoutDashboard color="white" size={24} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity className="p-3 opacity-50 hover:opacity-100">
-            <Package color="#4B5563" size={24} />
-          </TouchableOpacity>
-
-          <TouchableOpacity className="p-3 opacity-50 hover:opacity-100">
-            <ShoppingBag color="#4B5563" size={24} />
-          </TouchableOpacity>
-
-          <TouchableOpacity className="p-3 opacity-50 hover:opacity-100">
-            <Settings color="#4B5563" size={24} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity className="p-3 opacity-50 hover:opacity-100">
-            <Calendar color="#4B5563" size={24} />
-          </TouchableOpacity>
-        </View>
-
-        <View className="items-center space-y-6">
-           <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
-              <Text className="text-white font-bold">K</Text>
-           </View>
-           <Text className="text-xs font-medium text-gray-500">Kasir</Text>
-           <TouchableOpacity onPress={handleLogout}>
-             <LogOut color="#EF4444" size={20} />
-           </TouchableOpacity>
-        </View>
-      </View>
+      <KasirSidebar activeMenu="dashboard" />
 
       {/* 2. MAIN CONTENT AREA */}
       <View className="flex-1">
@@ -95,8 +101,8 @@ export default function KasirDashboard() {
           <Text className="text-4xl font-bold text-gray-900 mb-8">Dashboard</Text>
 
           {/* 3. METRICS CARDS */}
+          {/* ... (Metrics cards remains same) */}
           <View className="flex-row gap-6 mb-8">
-            {/* Card 1: Pendapatan */}
             <View className="flex-1 bg-sky-50 rounded-3xl p-6">
               <Text className="text-gray-500 text-sm font-medium mb-4">Pendapatan Transaksi Hari Ini</Text>
               <View className="flex-row justify-between items-end">
@@ -108,7 +114,6 @@ export default function KasirDashboard() {
               </View>
             </View>
 
-            {/* Card 2: Menu Terjual */}
             <View className="flex-1 bg-gray-100 rounded-3xl p-6">
               <Text className="text-gray-500 text-sm font-medium mb-4">Total menu terjual hari ini</Text>
               <View className="flex-row justify-between items-end">
@@ -120,7 +125,6 @@ export default function KasirDashboard() {
               </View>
             </View>
 
-            {/* Card 3: Total Transaksi */}
             <View className="flex-1 bg-sky-50 rounded-3xl p-6">
               <Text className="text-gray-500 text-sm font-medium mb-4">Total transaksi hari ini</Text>
               <View className="flex-row justify-between items-end">
@@ -140,8 +144,8 @@ export default function KasirDashboard() {
             <View className="flex-[2] bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
               <View className="flex-row justify-between items-center mb-6">
                 <Text className="text-xl font-bold text-gray-900">Ranking Menu</Text>
-                <TouchableOpacity>
-                  <Text className="text-indigo-600 font-medium">Show all {'>'}</Text>
+                <TouchableOpacity onPress={() => router.push('/kasir/ranking')}>
+                  <Text className="text-indigo-600 text-xs text-blue-500">Show all {'>'}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -168,31 +172,35 @@ export default function KasirDashboard() {
 
             {/* Stock / Ingredient Widget */}
             <View className="flex-1 bg-blue-50 rounded-3xl p-6 relative overflow-hidden">
-               <View className="absolute top-4 right-4 bg-indigo-500 p-2 rounded-lg">
+               <TouchableOpacity 
+                 onPress={openModal}
+                 className="absolute top-4 right-4 bg-indigo-500 p-2 rounded-lg z-10"
+               >
                  <Edit2 color="white" size={16} />
-               </View>
+               </TouchableOpacity>
 
                <View className="mt-8 space-y-8">
-                 <View>
-                   <Text className="font-bold text-gray-900 mb-2">Arabika Beans</Text>
-                   <View className="h-3 bg-white rounded-full w-full overflow-hidden">
-                     <View className="h-full bg-yellow-500 w-[40%] rounded-full"></View>
-                   </View>
-                 </View>
-
-                 <View>
-                   <Text className="font-bold text-gray-900 mb-2">Robusta Beans</Text>
-                   <View className="h-3 bg-white rounded-full w-full overflow-hidden">
-                     <View className="h-full bg-pink-500 w-[30%] rounded-full"></View>
-                   </View>
-                 </View>
-
-                 <View>
-                   <Text className="font-bold text-gray-900 mb-2">Caramel Syrup</Text>
-                   <View className="h-3 bg-white rounded-full w-full overflow-hidden">
-                     <View className="h-full bg-blue-500 w-[60%] rounded-full"></View>
-                   </View>
-                 </View>
+                  {selectedWidgetIds.map((id: string, index: number) => {
+                    const item = ingredients.find((i: Ingredient) => i.id === id);
+                    if (!item) return null;
+                    const percentage = getPercentage(item);
+                    return (
+                      <View key={id}>
+                        <Text className="font-bold text-gray-900 mb-2">{item.name}</Text>
+                        <View className="h-3 bg-white rounded-full w-full overflow-hidden">
+                          <View 
+                            className={`h-full ${getBarColor(index)} rounded-full`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                  {selectedWidgetIds.length === 0 && (
+                    <View className="items-center py-10">
+                      <Text className="text-gray-400 italic">No ingredients selected</Text>
+                    </View>
+                  )}
                </View>
             </View>
 
@@ -200,6 +208,56 @@ export default function KasirDashboard() {
 
         </ScrollView>
       </View>
+
+      {/* Selection Modal */}
+      <Modal
+          visible={modalVisible}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setModalVisible(false)}
+       >
+          <View className="flex-1 bg-white p-6">
+             <View className="flex-row justify-between items-center mb-2 mt-4">
+                  <Text className="text-xl font-bold text-gray-900">Pilih Monitor Stok</Text>
+                  <TouchableOpacity onPress={() => setModalVisible(false)} className="p-2 bg-gray-100 rounded-full">
+                     <X size={24} color="#374151" />
+                  </TouchableOpacity>
+             </View>
+             <Text className="text-gray-400 text-sm mb-6">Pilih maksimal 3 bahan untuk dipantau di dashboard.</Text>
+             
+             <FlatList
+                data={ingredients}
+                keyExtractor={(item: Ingredient) => item.id}
+                className="mb-20"
+                contentContainerStyle={{ paddingBottom: 100 }}
+                renderItem={({ item }: { item: Ingredient }) => {
+                    const isSelected = tempSelectedIds.includes(item.id);
+                    return (
+                        <TouchableOpacity 
+                           onPress={() => toggleSelection(item.id)}
+                           className={`py-4 border-b border-gray-100 flex-row justify-between items-center px-2 ${isSelected ? 'bg-indigo-50 rounded-lg border-b-0 mb-1' : ''}`}
+                        >
+                           <View>
+                               <Text className={`text-base font-medium ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>{item.name}</Text>
+                               <Text className="text-sm text-gray-500">{item.current_stock} {item.unit}</Text>
+                           </View>
+                           {isSelected && <Check size={20} color="#4f46e5" />}
+                        </TouchableOpacity>
+                    );
+                }}
+             />
+
+             <View className="absolute bottom-6 left-6 right-6">
+                 <TouchableOpacity 
+                    onPress={saveWidgetSelection}
+                    className="bg-indigo-600 p-4 rounded-xl items-center shadow-md"
+                 >
+                     <Text className="text-white font-bold text-base">Simpan Pilihan ({tempSelectedIds.length})</Text>
+                 </TouchableOpacity>
+             </View>
+          </View>
+       </Modal>
     </View>
   );
 }
+
