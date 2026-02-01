@@ -49,14 +49,15 @@ export default function OwnerDashboard() {
   return (
     <View className="flex-1 bg-gray-50">
       
+      <ScrollView 
+        contentContainerStyle={{ paddingBottom: 100 }} 
+        showsVerticalScrollIndicator={false}
+      >
       {/* 1. HEADER (Gradient Background) */}
       <LinearGradient
         colors={['#4c1d95', '#7c3aed']} // Dark purple to lighter purple
         className="pt-12 pb-24 px-6 rounded-b-[40px] shadow-lg"
       >
-        <View className="flex-row items-center justify-between mb-6">
-             <Text className="text-white text-lg opacity-80">Android Large - 1</Text>
-        </View>
         <Text className="text-white text-center text-xl font-bold mb-8">Owner Menu</Text>
         
         <Text className="text-white text-base font-medium mb-2">Summary</Text>
@@ -91,7 +92,18 @@ export default function OwnerDashboard() {
         <Text className="text-gray-400 text-lg font-medium mb-4">Menu</Text>
         <View className="flex-row flex-wrap justify-between gap-y-4">
           {MENU_ITEMS.map((item, index) => (
-            <TouchableOpacity key={index} className="w-[30%] bg-white p-3 rounded-xl shadow-sm items-center justify-center space-y-2 aspect-square">
+            <TouchableOpacity 
+              key={index} 
+              onPress={() => {
+                if (item.name === "Kategori Menu") {
+                  router.push('/owner/categories');
+                } else {
+                  // Handle other items or show "Coming Soon"
+                  console.log("Pressed:", item.name);
+                }
+              }}
+              className="w-[30%] bg-white p-3 rounded-xl shadow-sm items-center justify-center space-y-2 aspect-square"
+            >
                <Image source={item.icon} className="w-10 h-10 object-contain" />
                <Text className="text-[10px] font-medium text-center text-gray-800">{item.name}</Text>
             </TouchableOpacity>
@@ -102,7 +114,7 @@ export default function OwnerDashboard() {
         <View className="bg-white rounded-3xl p-6 shadow-sm mt-8 mb-24">
              <View className="flex-row justify-between items-center mb-6">
                 <Text className="text-lg font-bold text-gray-900">Ranking Menu</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/owner/ranking')}>
                   <Text className="text-indigo-600 text-xs text-blue-500">Show all {'>'}</Text>
                 </TouchableOpacity>
               </View>
@@ -128,6 +140,7 @@ export default function OwnerDashboard() {
               </View>
         </View>
       </View>
+      </ScrollView>
 
       {/* 5. BOTTOM NAVIGATION */}
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex-row justify-around py-4 pb-6">
