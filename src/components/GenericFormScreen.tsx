@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Save } from 'lucide-react-native';
+import { ChevronLeft, Save, ChevronDown } from 'lucide-react-native';
 
 export interface FormField {
   label: string;
@@ -11,6 +11,8 @@ export interface FormField {
   autoFocus?: boolean;
   multiline?: boolean;
   keyboardType?: 'default' | 'number-pad' | 'decimal-pad' | 'numeric' | 'email-address' | 'phone-pad';
+  type?: 'text' | 'select' | 'number';
+  options?: { label: string; value: string }[];
 }
 
 interface GenericFormScreenProps {
@@ -19,7 +21,7 @@ interface GenericFormScreenProps {
   onSubmit: () => void;
   loading: boolean;
   submitLabel?: string;
-  children?: React.ReactNode; // For extra content if needed
+  children?: React.ReactNode; 
 }
 
 export default function GenericFormScreen({ 
@@ -31,6 +33,46 @@ export default function GenericFormScreen({
   children
 }: GenericFormScreenProps) {
   const router = useRouter();
+
+  const renderField = (field: FormField, index: number) => {
+      if (field.type === 'select' && field.options) {
+          return (
+            <View key={index} className="mb-6">
+                <Text className="text-sm font-medium text-gray-700 mb-2">{field.label}</Text>
+                <View className="flex-row flex-wrap gap-2">
+                    {field.options.map((option) => (
+                        <TouchableOpacity
+                            key={option.value}
+                            onPress={() => field.onChangeText(option.value)}
+                            className={`px-4 py-2 rounded-full border ${field.value === option.value ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}
+                        >
+                            <Text className={`${field.value === option.value ? 'text-white' : 'text-gray-700'} font-medium`}>
+                                {option.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+          );
+      }
+
+      // Default Text Input
+      return (
+        <View key={index} className="mb-6">
+           <Text className="text-sm font-medium text-gray-700 mb-2">{field.label}</Text>
+           <TextInput
+               value={field.value}
+               onChangeText={field.onChangeText}
+               placeholder={field.placeholder}
+               className={`bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800 text-base ${field.multiline ? 'h-24' : ''}`}
+               autoFocus={field.autoFocus}
+               multiline={field.multiline}
+               textAlignVertical={field.multiline ? 'top' : 'center'}
+               keyboardType={field.keyboardType}
+           />
+        </View>
+      );
+  };
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -50,21 +92,7 @@ export default function GenericFormScreen({
        >
           <ScrollView contentContainerStyle={{ padding: 24 }}>
             <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-               {fields.map((field, index) => (
-                 <View key={index} className="mb-6">
-                    <Text className="text-sm font-medium text-gray-700 mb-2">{field.label}</Text>
-                    <TextInput
-                        value={field.value}
-                        onChangeText={field.onChangeText}
-                        placeholder={field.placeholder}
-                        className={`bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800 text-base ${field.multiline ? 'h-24' : ''}`}
-                        autoFocus={field.autoFocus}
-                        multiline={field.multiline}
-                        textAlignVertical={field.multiline ? 'top' : 'center'}
-                        keyboardType={field.keyboardType}
-                    />
-                 </View>
-               ))}
+               {fields.map((field, index) => renderField(field, index))}
 
                {children}
 

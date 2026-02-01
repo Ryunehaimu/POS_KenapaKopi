@@ -97,6 +97,8 @@ export default function OwnerDashboard() {
               onPress={() => {
                 if (item.name === "Kategori Menu") {
                   router.push('/owner/categories');
+                } else if (item.name === "Stock Opname") {
+                  router.push('/owner/stockopname');
                 } else {
                   // Handle other items or show "Coming Soon"
                   console.log("Pressed:", item.name);
