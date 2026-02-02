@@ -42,7 +42,7 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
     { key: 'dashboard', icon: LayoutDashboard, path: '/kasir/Dashboard' },
     { key: 'cashier', icon: ShoppingCart, path: '/kasir/Cashier' },
     { key: 'transactions', icon: History, path: '/kasir/Transactions' },
-    { key: 'menu', icon: Coffee, path: '/kasir/Menu' },
+    { key: 'menu', icon: Coffee, path: '/kasir/menu' },
     { key: 'stock', icon: Package, path: '/kasir/StockOpname' },
     { key: 'categories', icon: Tags, path: '/kasir/categories' },
     { key: 'attendance', icon: UserCheck, path: '/kasir/Attendance' },
