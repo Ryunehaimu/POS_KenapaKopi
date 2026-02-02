@@ -18,7 +18,6 @@
     "expo-constants": "~18.0.13",
     "expo-face-detector": "^13.0.2",
     "expo-gl": "^16.0.10",
-    "expo-gl-cpp": "^11.4.0",
     "expo-image-picker": "^17.0.10",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.11",

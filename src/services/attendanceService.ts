@@ -10,9 +10,10 @@ export interface Employee {
 export interface AttendanceLog {
   id: string;
   employee_id: string;
-  status: 'in' | 'out';
+  status: 'Masuk' | 'Tidak';
   date: string;
-  photo_url: string;
+  attendance_photo_url: string;
+  late_minutes?: number;
   created_at: string;
 }
 
@@ -33,7 +34,7 @@ export const attendanceService = {
     const filePath = `logs/${fileName}`;
     
     const { data, error } = await supabase.storage
-      .from('attendance')
+      .from('daily_attendance')
       .upload(filePath, decode(base64Image), {
         contentType: 'image/jpeg',
         upsert: true
@@ -42,15 +43,50 @@ export const attendanceService = {
     if (error) throw error;
 
     const { data: { publicUrl } } = supabase.storage
-      .from('attendance')
+      .from('daily_attendance')
       .getPublicUrl(filePath);
 
     return publicUrl;
   },
 
+  // Helper to calculate late info
+  calculateLateness(logTime: string | Date) {
+      const d = new Date(logTime);
+      const hour = d.getHours();
+      
+      const targetHour = hour >= 12 ? 15 : 9;
+      const target = new Date(d);
+      target.setHours(targetHour, 0, 0, 0);
+
+      let lateMinutes = 0;
+
+      if (d > target) {
+          const diffMs = d.getTime() - target.getTime();
+          const diffMins = Math.floor( diffMs / 60000 );
+
+          if (diffMins > 0) {
+              lateMinutes = Math.ceil(diffMins / 30) * 30;
+          }
+      }
+
+      return lateMinutes;
+  },
+
   // Clock In/Out
-  async logAttendance(employeeId: string, status: 'in' | 'out', photoBase64: string) {
+  async logAttendance(employeeId: string, status: 'Masuk' | 'Tidak', photoBase64: string) {
     try {
+      const now = new Date();
+      const hour = now.getHours();
+
+      // Store Hours Validation (Block 22:00 - 07:00)
+      // "Jam tutup sampai 2 jam sebelum buka (09:00 - 2 = 07:00)"
+      if (hour >= 22 || hour < 7) {
+          throw new Error("Toko sedang tutup. Absensi hanya dapat dilakukan mulai pukul 07:00 pagi.");
+      }
+
+      // Calculate Lateness
+      const lateMinutes = this.calculateLateness(now);
+
       // 1. Upload Photo
       const timestamp = new Date().getTime();
       const fileName = `${employeeId}_${status}_${timestamp}.jpg`;
@@ -62,8 +98,9 @@ export const attendanceService = {
         .insert({
           employee_id: employeeId,
           status,
-          photo_url: photoUrl,
+          attendance_photo_url: photoUrl,
           date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+          late_minutes: lateMinutes
         })
         .select()
         .single();
@@ -72,7 +109,6 @@ export const attendanceService = {
       return data as AttendanceLog;
 
     } catch (error) {
-      console.error('Attendance Log Error:', error);
       throw error;
     }
   },
@@ -91,5 +127,27 @@ export const attendanceService = {
 
     if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "Row not found"
     return data as AttendanceLog | null;
+  },
+
+  // Identify user from photo (MOCK IMPLEMENTATION)
+  // In a real app, this would send the photo to a Face Recognition API
+  async identifyUser(photoBase64: string): Promise<Employee | null> {
+    // SIMULATION: Just return the first employee found to demonstrate flow
+    // Replace this logic with actual API call to AWS Rekognition / Azure Face
+    
+    console.log("Simulating Face Recognition...");
+    
+    // Artificial delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    const employees = await this.getEmployees();
+    if (employees.length > 0) {
+        // Return a random employee for simulation
+        // const randomIndex = Math.floor(Math.random() * employees.length);
+        // return employees[randomIndex];
+        return employees[0]; // Always return the first one for consistent testing
+    }
+    
+    return null;
   }
 };
