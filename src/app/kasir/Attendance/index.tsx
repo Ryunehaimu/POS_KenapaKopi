@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Ima
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as FaceDetector from 'expo-face-detector';
 import { ArrowLeft, RefreshCcw, Camera, User } from 'lucide-react-native';
+
 import { useRouter } from 'expo-router';
 import { attendanceService, Employee, AttendanceLog } from '../../../services/attendanceService';
 import KasirSidebar from '../../../components/KasirSidebar';
