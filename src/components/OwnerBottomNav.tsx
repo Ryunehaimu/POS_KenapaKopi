@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Home, FileText, UserCheck, LogOut } from 'lucide-react-native';
+import { Home, LogOut } from 'lucide-react-native';
 import { authService } from '../services/authService';
 
 interface OwnerBottomNavProps {
-    activeMenu?: 'home' | 'log' | 'absensi';
+    activeMenu?: 'home';
 }
 
 export default function OwnerBottomNav({ activeMenu = 'home' }: OwnerBottomNavProps) {
@@ -37,30 +37,6 @@ export default function OwnerBottomNav({ activeMenu = 'home' }: OwnerBottomNavPr
             >
                 <Home color={activeMenu === 'home' ? "#4f46e5" : "#9ca3af"} size={24} />
                 <Text className={`text-[10px] font-bold mt-1 ${activeMenu === 'home' ? 'text-indigo-600' : 'text-gray-400'}`}>Beranda</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-                className="items-center"
-                onPress={() => {
-                    // Navigate to Log Bahan if implemented, or just stay/placeholder
-                    // router.push('/owner/logbahan'); 
-                    console.log("Log Bahan pressed");
-                }}
-            >
-                <FileText color={activeMenu === 'log' ? "#4f46e5" : "#9ca3af"} size={24} />
-                <Text className={`text-[10px] font-medium mt-1 ${activeMenu === 'log' ? 'text-indigo-600' : 'text-gray-400'}`}>Log Bahan</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-                className="items-center"
-                onPress={() => {
-                    // Navigate to Absensi if implemented
-                    // router.push('/owner/absensi');
-                    console.log("Absensi pressed");
-                }}
-            >
-                <UserCheck color={activeMenu === 'absensi' ? "#4f46e5" : "#9ca3af"} size={24} />
-                <Text className={`text-[10px] font-medium mt-1 ${activeMenu === 'absensi' ? 'text-indigo-600' : 'text-gray-400'}`}>Absensi</Text>
             </TouchableOpacity>
 
             <TouchableOpacity className="items-center" onPress={handleLogout}>

@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { 
-  LayoutDashboard, 
-  Package, 
+import {
+  LayoutDashboard,
+  Package,
   Tags,
   LogOut,
   Coffee,
@@ -26,8 +26,8 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
       "Apakah Anda yakin ingin keluar?",
       [
         { text: "Batal", style: "cancel" },
-        { 
-          text: "Keluar", 
+        {
+          text: "Keluar",
           style: "destructive",
           onPress: async () => {
             await authService.signOut();
@@ -45,7 +45,7 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
     { key: 'menu', icon: Coffee, path: '/kasir/menu' },
     { key: 'stock', icon: Package, path: '/kasir/StockOpname' },
     { key: 'categories', icon: Tags, path: '/kasir/categories' },
-    { key: 'attendance', icon: UserCheck, path: '/kasir/Attendance' },
+    { key: 'attendance', icon: UserCheck, path: '/kasir/absensi' },
   ];
 
   return (
@@ -53,33 +53,33 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
       <View className="items-center space-y-8">
         {/* Menu Button Placeholder */}
         <TouchableOpacity className="p-2 rounded-xl hover:bg-gray-100 mb-2">
-           <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
-           <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
-           <View className="w-6 h-0.5 bg-gray-800"></View>
+          <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
+          <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
+          <View className="w-6 h-0.5 bg-gray-800"></View>
         </TouchableOpacity>
 
         {menuItems.map((item) => {
-           const isActive = activeMenu === item.key;
-           return (
-             <TouchableOpacity 
-               key={item.key}
-               onPress={() => item.path ? router.push(item.path as any) : null}
-               className={`p-3 rounded-xl ${isActive ? 'bg-indigo-600 shadow-lg shadow-indigo-300' : 'opacity-50 hover:opacity-100'}`}
-             >
-               <item.icon color={isActive ? 'white' : '#4B5563'} size={24} />
-             </TouchableOpacity>
-           );
+          const isActive = activeMenu === item.key;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              onPress={() => item.path ? router.push(item.path as any) : null}
+              className={`p-3 rounded-xl ${isActive ? 'bg-indigo-600 shadow-lg shadow-indigo-300' : 'opacity-50 hover:opacity-100'}`}
+            >
+              <item.icon color={isActive ? 'white' : '#4B5563'} size={24} />
+            </TouchableOpacity>
+          );
         })}
       </View>
 
       <View className="items-center space-y-6">
-         <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
-            <Text className="text-white font-bold">K</Text>
-         </View>
-         <Text className="text-xs font-medium text-gray-500">Kasir</Text>
-         <TouchableOpacity onPress={handleLogout}>
-           <LogOut color="#EF4444" size={20} />
-         </TouchableOpacity>
+        <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
+          <Text className="text-white font-bold">K</Text>
+        </View>
+        <Text className="text-xs font-medium text-gray-500">Kasir</Text>
+        <TouchableOpacity onPress={handleLogout}>
+          <LogOut color="#EF4444" size={20} />
+        </TouchableOpacity>
       </View>
     </View>
   );

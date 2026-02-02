@@ -82,6 +82,13 @@ export default function OwnerDashboard() {
                     router.push('/owner/stockopname');
                   } else if (item.name === "Menu") {
                     router.push('/owner/menu');
+                  } else if (item.name === "Pegawai") {
+                    router.push('/owner/pegawai');
+                  } else if (item.name === "Pengeluaran") {
+                    router.push('/owner/expenses');
+                  } else if (item.name === "Report") {
+                    router.push('/owner/reports');
+                    // console.log("Report pressed");
                   } else {
                     // Handle other items or show "Coming Soon"
                     console.log("Pressed:", item.name);

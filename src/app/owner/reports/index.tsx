@@ -1,0 +1,487 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, FlatList } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ChevronLeft, ChevronDown, Download, Calendar } from 'lucide-react-native';
+import OwnerBottomNav from '../../../components/OwnerBottomNav';
+import { reportService, ReportType } from '../../../services/reportService';
+
+const REPORT_TYPES: { label: string; value: ReportType }[] = [
+    { label: 'Laporan Transaksi', value: 'transaction_report' },
+    { label: 'Menu Terlaris', value: 'best_selling_menu' },
+    { label: 'Pengeluaran Bahan', value: 'ingredient_expense' },
+    { label: 'Pengeluaran Operasional', value: 'operational_expense' }
+];
+
+const MONTHS = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+];
+
+export default function ReportsScreen() {
+    const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    const [data, setData] = useState<any[]>([]);
+
+    // Filters
+    const [selectedType, setSelectedType] = useState<ReportType>('transaction_report');
+
+    // Range States
+    const now = new Date();
+    const [startMonth, setStartMonth] = useState(now.getMonth());
+    const [startYear, setStartYear] = useState(now.getFullYear());
+    const [endMonth, setEndMonth] = useState(now.getMonth());
+    const [endYear, setEndYear] = useState(now.getFullYear());
+
+    // UI State
+    const [showTypePicker, setShowTypePicker] = useState(false);
+    const [activePicker, setActivePicker] = useState<'start' | 'end' | null>(null);
+    const [showMonthPicker, setShowMonthPicker] = useState(false);
+    const [showYearPicker, setShowYearPicker] = useState(false);
+
+    useEffect(() => {
+        loadData();
+    }, [selectedType, startMonth, startYear, endMonth, endYear]);
+
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            setData([]);
+
+            const startDate = new Date(startYear, startMonth, 1);
+            const endDate = new Date(endYear, endMonth + 1, 0, 23, 59, 59);
+
+            let result: any[] = [];
+            if (selectedType === 'ingredient_expense') {
+                result = await reportService.getIngredientExpenseReport(startDate, endDate);
+            } else if (selectedType === 'best_selling_menu') {
+                result = await reportService.getBestSellingMenuReport(startDate, endDate);
+            } else if (selectedType === 'operational_expense') {
+                result = await reportService.getOperationalExpenseReport(startDate, endDate);
+            } else if (selectedType === 'transaction_report') {
+                result = await reportService.getTransactionReport(startDate, endDate);
+            }
+            setData(result);
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "Gagal memuat data laporan");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Memoized Totals and Labels
+    const grandTotal = React.useMemo(() => {
+        return data.reduce((acc, curr) => {
+            const val = curr.totalCost ?? curr.totalRevenue ?? curr.totalAmount ?? 0;
+            return acc + val;
+        }, 0);
+    }, [data]);
+
+    const typeLabel = React.useMemo(() => {
+        return REPORT_TYPES.find(t => t.value === selectedType)?.label || '';
+    }, [selectedType]);
+
+    const periodLabel = React.useMemo(() => {
+        const start = `${MONTHS[startMonth]} ${startYear}`;
+        const end = `${MONTHS[endMonth]} ${endYear}`;
+        return `${start} - ${end}`;
+    }, [startMonth, startYear, endMonth, endYear]);
+
+    const handleExport = async () => {
+        try {
+            setLoading(true);
+            const startDate = new Date(startYear, startMonth, 1);
+            const endDate = new Date(endYear, endMonth + 1, 0, 23, 59, 59);
+
+            let html = '';
+
+            // Build HTML Table based on Type
+            if (selectedType === 'ingredient_expense') {
+                html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nama Bahan</th>
+                                <th>Satuan</th>
+                                <th class="text-right">Total Pakai/Beli</th>
+                                <th class="text-right">Total Biaya</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map((item: any) => `
+                                <tr>
+                                    <td>${item.name || '-'}</td>
+                                    <td>${item.unit || '-'}</td>
+                                    <td class="text-right">${item.totalAmount || 0}</td>
+                                    <td class="text-right">Rp ${(item.totalCost ?? 0).toLocaleString('id-ID')}</td>
+                                </tr>
+                            `).join('')}
+                            <tr class="total-row">
+                                <td colspan="3" class="text-center">Total</td>
+                                <td class="text-right">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+            } else if (selectedType === 'best_selling_menu') {
+                html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nama Menu</th>
+                                <th>Kategori</th>
+                                <th class="text-center">Terjual</th>
+                                <th class="text-right">Pendapatan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map((item: any) => `
+                                <tr>
+                                    <td>${item.name || '-'}</td>
+                                    <td>${item.category || '-'}</td>
+                                    <td class="text-center">${item.qtySold || 0}</td>
+                                    <td class="text-right">Rp ${(item.totalRevenue ?? 0).toLocaleString('id-ID')}</td>
+                                </tr>
+                            `).join('')}
+                            <tr class="total-row">
+                                <td colspan="3" class="text-center">Total</td>
+                                <td class="text-right">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+            } else if (selectedType === 'operational_expense') {
+                html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nama Pengeluaran</th>
+                                <th class="text-center">Frekuensi</th>
+                                <th class="text-right">Total Biaya</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map((item: any) => `
+                                <tr>
+                                    <td>${item.name || '-'}</td>
+                                    <td class="text-center">${item.count || 0}x</td>
+                                    <td class="text-right">Rp ${(item.totalCost ?? 0).toLocaleString('id-ID')}</td>
+                                </tr>
+                            `).join('')}
+                            <tr class="total-row">
+                                <td colspan="2" class="text-center">Total</td>
+                                <td class="text-right">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+            } else if (selectedType === 'transaction_report') {
+                html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tgl</th>
+                                <th>Order ID</th>
+                                <th>Pelanggan</th>
+                                <th>Metode</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map((item: any) => `
+                                <tr>
+                                    <td>${item.date || '-'}</td>
+                                    <td>${item.orderId || '-'}</td>
+                                    <td>${item.customerName || '-'}</td>
+                                    <td>${item.paymentMethod || '-'}</td>
+                                    <td class="text-right">Rp ${(item.totalAmount ?? 0).toLocaleString('id-ID')}</td>
+                                </tr>
+                            `).join('')}
+                            <tr class="total-row">
+                                <td colspan="4" class="text-center">Total Pendapatan</td>
+                                <td class="text-right">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            await reportService.generatePDF(
+                `Laporan ${typeLabel}`,
+                `Periode: ${periodLabel}`,
+                html
+            );
+
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "Gagal export PDF");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const changeYear = (year: number) => {
+        if (activePicker === 'start') {
+            setStartYear(year);
+        } else {
+            setEndYear(year);
+        }
+        setShowYearPicker(false);
+    };
+
+    const changeMonth = (monthIndex: number) => {
+        if (activePicker === 'start') {
+            setStartMonth(monthIndex);
+        } else {
+            setEndMonth(monthIndex);
+        }
+        setShowMonthPicker(false);
+    };
+
+    return (
+        <View className="flex-1 bg-gray-50">
+            {/* Header */}
+            <View className="bg-white px-6 pt-12 pb-4 shadow-sm z-10">
+                <View className="flex-row items-center mb-4 gap-4">
+                    <TouchableOpacity onPress={() => router.back()} className="p-2 bg-gray-100 rounded-full">
+                        <ChevronLeft size={24} color="#374151" />
+                    </TouchableOpacity>
+                    <Text className="text-xl font-bold text-gray-800">Laporan</Text>
+                </View>
+
+                {/* Filters */}
+                <View className="space-y-3">
+                    {/* Report Type Selector */}
+                    <TouchableOpacity
+                        className="flex-row justify-between items-center bg-gray-100 p-3 rounded-lg border border-gray-200"
+                        onPress={() => setShowTypePicker(!showTypePicker)}
+                    >
+                        <Text className="font-medium text-gray-700">
+                            {typeLabel}
+                        </Text>
+                        <ChevronDown size={20} color="#6b7280" />
+                    </TouchableOpacity>
+
+                    {showTypePicker && (
+                        <View className="bg-white border border-gray-200 rounded-lg shadow-lg absolute top-[60px] left-6 right-6 z-50">
+                            {REPORT_TYPES.map((type) => (
+                                <TouchableOpacity
+                                    key={type.value}
+                                    onPress={() => {
+                                        setSelectedType(type.value);
+                                        setShowTypePicker(false);
+                                    }}
+                                    className="p-3 border-b border-gray-100 last:border-0"
+                                >
+                                    <Text className={`text-sm ${selectedType === type.value ? 'text-indigo-600 font-bold' : 'text-gray-600'}`}>
+                                        {type.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+
+                    {/* Period Selector Row */}
+                    <View className="flex-row gap-3">
+                        {/* Start Range */}
+                        <TouchableOpacity
+                            className="flex-1 bg-white border border-gray-300 p-2 rounded-lg"
+                            onPress={() => {
+                                setActivePicker('start');
+                                setShowMonthPicker(true);
+                            }}
+                        >
+                            <Text className="text-[10px] text-gray-400 font-bold uppercase mb-1">Dari</Text>
+                            <View className="flex-row items-center gap-2">
+                                <Calendar size={14} color="#4f46e5" />
+                                <Text className="text-gray-700 font-medium text-xs">
+                                    {MONTHS[startMonth].substring(0, 3)} {startYear}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        {/* End Range */}
+                        <TouchableOpacity
+                            className="flex-1 bg-white border border-gray-300 p-2 rounded-lg"
+                            onPress={() => {
+                                setActivePicker('end');
+                                setShowMonthPicker(true);
+                            }}
+                        >
+                            <Text className="text-[10px] text-gray-400 font-bold uppercase mb-1">Sampai</Text>
+                            <View className="flex-row items-center gap-2">
+                                <Calendar size={14} color="#4f46e5" />
+                                <Text className="text-gray-700 font-medium text-xs">
+                                    {MONTHS[endMonth].substring(0, 3)} {endYear}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+
+            {/* Content / Preview List */}
+            <ScrollView className="flex-1 px-6 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
+                {loading ? (
+                    <ActivityIndicator size="large" color="#4F46E5" className="mt-10" />
+                ) : (
+                    <View className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+                        {/* Header Row */}
+                        <View className="bg-gray-50 flex-row p-3 border-b border-gray-100">
+                            {selectedType === 'transaction_report' ? (
+                                <>
+                                    <Text className="flex-1 font-bold text-gray-500 text-xs text-left">Tgl</Text>
+                                    <Text className="flex-1 font-bold text-gray-500 text-xs text-left">ID</Text>
+                                    <Text className="flex-[1.5] font-bold text-gray-500 text-xs text-left">Pelanggan</Text>
+                                    <Text className="flex-[1.5] font-bold text-gray-500 text-xs text-right">Total</Text>
+                                </>
+                            ) : (
+                                <>
+                                    <Text className="flex-[2] font-bold text-gray-500 text-xs text-left">
+                                        {selectedType === 'best_selling_menu' ? 'Nama Menu' : 'Nama Item'}
+                                    </Text>
+                                    {selectedType === 'ingredient_expense' && (
+                                        <Text className="flex-1 font-bold text-gray-500 text-xs text-left">Unit</Text>
+                                    )}
+                                    <Text className="flex-1 font-bold text-gray-500 text-xs text-center">
+                                        {selectedType === 'ingredient_expense' ? 'Qty' : (selectedType === 'best_selling_menu' ? 'Terjual' : 'Freq')}
+                                    </Text>
+                                    <Text className="flex-[1.5] font-bold text-gray-500 text-xs text-right">Total</Text>
+                                </>
+                            )}
+                        </View>
+
+                        {data.length === 0 ? (
+                            <View className="p-8 items-center">
+                                <Text className="text-gray-400 italic">Tidak ada data untuk periode ini</Text>
+                            </View>
+                        ) : (
+                            data.map((item, idx) => (
+                                <View key={idx} className="flex-row p-3 border-b border-gray-50 items-center">
+                                    {selectedType === 'transaction_report' ? (
+                                        <>
+                                            <Text className="flex-1 text-gray-600 text-[10px]">{(item.date || '').split(',')[0]}</Text>
+                                            <Text className="flex-1 text-gray-800 font-medium text-xs">{item.orderId || '-'}</Text>
+                                            <Text className="flex-[1.5] text-gray-600 text-[10px]" numberOfLines={1}>{item.customerName || 'Pelanggan'}</Text>
+                                            <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
+                                                Rp {(item.totalAmount ?? 0).toLocaleString('id-ID')}
+                                            </Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <View className="flex-[2]">
+                                                <Text className="text-gray-800 font-medium text-sm">{item.name || '-'}</Text>
+                                                {selectedType === 'best_selling_menu' && <Text className="text-[10px] text-gray-400">{item.category}</Text>}
+                                            </View>
+
+                                            {selectedType === 'ingredient_expense' && (
+                                                <Text className="flex-1 text-gray-600 text-xs">{item.unit || '-'}</Text>
+                                            )}
+
+                                            <Text className="flex-1 text-gray-600 text-xs text-center">
+                                                {selectedType === 'ingredient_expense' ? (item.totalAmount ?? 0)
+                                                    : (selectedType === 'best_selling_menu' ? (item.qtySold ?? 0)
+                                                        : `${item.count ?? 0}x`)}
+                                            </Text>
+
+                                            <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
+                                                Rp {(item.totalCost ?? item.totalRevenue ?? 0).toLocaleString('id-ID')}
+                                            </Text>
+                                        </>
+                                    )}
+                                </View>
+                            ))
+                        )}
+
+                        {/* Footer Totals */}
+                        {data.length > 0 && (
+                            <View className="bg-indigo-50 p-3 flex-row justify-between items-center border-t border-indigo-100">
+                                <Text className="font-bold text-indigo-900">Total</Text>
+                                <Text className="font-bold text-indigo-900 text-base">
+                                    Rp {grandTotal.toLocaleString('id-ID')}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                )}
+            </ScrollView>
+
+            {/* Floating Export Button */}
+            {!loading && data.length > 0 && (
+                <View className="absolute bottom-24 right-6 left-6">
+                    <TouchableOpacity
+                        onPress={handleExport}
+                        className="bg-red-600 p-4 rounded-xl shadow-lg flex-row justify-center items-center gap-2"
+                    >
+                        <Download color="white" size={20} />
+                        <Text className="text-white font-bold text-base">Export PDF</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            <OwnerBottomNav />
+
+            {/* Modals for Date Picking (Simplified) */}
+            <Modal visible={showMonthPicker} transparent animationType="fade">
+                <View className="flex-1 bg-black/50 justify-center items-center p-6">
+                    <View className="bg-white w-full rounded-2xl p-4 max-h-[80%]">
+                        <Text className="text-lg font-bold text-center mb-4">Pilih Bulan</Text>
+                        <FlatList
+                            data={MONTHS}
+                            keyExtractor={(item) => item}
+                            numColumns={3}
+                            renderItem={({ item, index }) => {
+                                const isSelected = activePicker === 'start' ? startMonth === index : endMonth === index;
+                                return (
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            changeMonth(index);
+                                            setShowMonthPicker(false);
+                                            setShowYearPicker(true);
+                                        }}
+                                        className={`flex-1 m-1 p-3 rounded-xl items-center ${isSelected ? 'bg-indigo-100' : 'bg-gray-50'}`}
+                                    >
+                                        <Text className={isSelected ? 'text-indigo-700 font-bold' : 'text-gray-600'}>
+                                            {item.substring(0, 3)}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            }}
+                        />
+                        <TouchableOpacity onPress={() => setShowMonthPicker(false)} className="mt-4 p-3 bg-gray-200 rounded-xl items-center">
+                            <Text>Batal</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal visible={showYearPicker} transparent animationType="fade">
+                <View className="flex-1 bg-black/50 justify-center items-center p-6">
+                    <View className="bg-white w-full rounded-2xl p-4">
+                        <Text className="text-lg font-bold text-center mb-4">Pilih Tahun</Text>
+                        <ScrollView className="max-h-60">
+                            {[2024, 2025, 2026, 2027, 2028].map(year => {
+                                const isSelected = activePicker === 'start' ? startYear === year : endYear === year;
+                                return (
+                                    <TouchableOpacity
+                                        key={year}
+                                        onPress={() => changeYear(year)}
+                                        className={`p-4 border-b border-gray-100 items-center ${isSelected ? 'bg-indigo-50' : ''}`}
+                                    >
+                                        <Text className={isSelected ? 'font-bold text-indigo-600' : 'text-gray-700'}>
+                                            {year}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </ScrollView>
+                        <TouchableOpacity onPress={() => setShowYearPicker(false)} className="mt-4 p-3 bg-gray-200 rounded-xl items-center">
+                            <Text>Batal</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+        </View>
+    );
+}
