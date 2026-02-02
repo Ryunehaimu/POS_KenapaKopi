@@ -23,7 +23,7 @@ export const attendanceService = {
       .from('employees')
       .select('*')
       .order('name');
-    
+
     if (error) throw error;
     return data as Employee[];
   },
@@ -31,7 +31,7 @@ export const attendanceService = {
   // Upload photo to storage
   async uploadPhoto(base64Image: string, fileName: string) {
     const filePath = `logs/${fileName}`;
-    
+
     const { data, error } = await supabase.storage
       .from('attendance')
       .upload(filePath, decode(base64Image), {
@@ -91,5 +91,22 @@ export const attendanceService = {
 
     if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "Row not found"
     return data as AttendanceLog | null;
+  },
+
+  // Get count of employees present today
+  async getDailyAttendanceCount() {
+    const today = new Date().toISOString().split('T')[0];
+    // Get all 'in' logs for today
+    const { data, error } = await supabase
+      .from('attendance_logs')
+      .select('employee_id')
+      .eq('date', today)
+      .eq('status', 'Masuk');
+
+    if (error) throw error;
+
+    // Count unique employees
+    const uniqueEmployees = new Set(data.map(log => log.employee_id));
+    return uniqueEmployees.size;
   }
 };

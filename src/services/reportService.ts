@@ -3,7 +3,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Alert } from "react-native";
 
-export type ReportType = 'ingredient_expense' | 'transaction_report' | 'best_selling_menu' | 'operational_expense';
+export type ReportType = 'ingredient_expense' | 'transaction_report' | 'best_selling_menu' | 'operational_expense' | 'net_revenue';
 
 interface IngredientExpenseItem {
     name: string;
@@ -168,6 +168,42 @@ export const reportService = {
         return Array.from(map.values()).sort((a, b) => b.qtySold - a.qtySold);
     },
 
+    async getNetRevenueReport(startDate: Date, endDate: Date) {
+        // 1. Get Total Revenue
+        const transactions = await this.getTransactionReport(startDate, endDate);
+        const totalRevenue = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
+
+        // 2. Get Ingredient Expenses
+        const ingExpenses = await this.getIngredientExpenseReport(startDate, endDate);
+        const totalIngExpense = ingExpenses.reduce((sum, i) => sum + i.totalCost, 0);
+
+        // 3. Get Operational Expenses
+        const opExpenses = await this.getOperationalExpenseReport(startDate, endDate);
+        const totalOpExpense = opExpenses.reduce((sum, o) => sum + o.totalCost, 0);
+
+        // 4. Calculate Net
+        const totalExpense = totalIngExpense + totalOpExpense;
+        const netRevenue = totalRevenue - totalExpense;
+
+        return [{
+            title: 'Pendapatan Kotor',
+            amount: totalRevenue,
+            type: 'income'
+        }, {
+            title: 'Pengeluaran Bahan',
+            amount: totalIngExpense,
+            type: 'expense'
+        }, {
+            title: 'Pengeluaran Operasional',
+            amount: totalOpExpense,
+            type: 'expense'
+        }, {
+            title: 'Penghasilan Bersih',
+            amount: netRevenue,
+            type: 'net'
+        }];
+    },
+
     async generatePDF(title: string, periodInfo: string, htmlContent: string) {
         try {
             const finalHtml = `
@@ -186,6 +222,8 @@ export const reportService = {
                         .total-row { font-weight: bold; background-color: #e6e6e6; }
                         .text-right { text-align: right; }
                         .text-center { text-align: center; }
+                        .text-green { color: green; }
+                        .text-red { color: red; }
                     </style>
                 </head>
                 <body>

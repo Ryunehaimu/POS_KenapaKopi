@@ -1,29 +1,44 @@
-import React from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Trophy, ArrowUp, ArrowDown } from 'lucide-react-native';
 import OwnerBottomNav from '../../../components/OwnerBottomNav';
-
-const RANKING_DATA = [
-  { id: '1', name: "Americano", cat: "Coffee", count: 154, color: "bg-amber-100", change: "+12%" },
-  { id: '2', name: "Butterscoth", cat: "Koppsu", count: 120, color: "bg-orange-100", change: "+5%" },
-  { id: '3', name: "Mocha", cat: "Koppsu", count: 98, color: "bg-brown-100", change: "-2%" },
-  { id: '4', name: "Matcha Latte", cat: "Non Coffee", count: 85, color: "bg-green-100", change: "+8%" },
-  { id: '5', name: "Caramel Latte", cat: "Coffee", count: 76, color: "bg-amber-100", change: "+4%" },
-  { id: '6', name: "Chocolate", cat: "Non Coffee", count: 64, color: "bg-brown-100", change: "-1%" },
-  { id: '7', name: "Red Velvet", cat: "Non Coffee", count: 52, color: "bg-red-100", change: "+3%" },
-  { id: '8', name: "V60 Manual Brew", cat: "Manual Brew", count: 48, color: "bg-stone-100", change: "+15%" },
-  { id: '9', name: "Vietnam Drip", cat: "Manual Brew", count: 41, color: "bg-stone-100", change: "0%" },
-  { id: '10', name: "Lemon Tea", cat: "Tea", count: 35, color: "bg-yellow-100", change: "-5%" },
-];
+import { orderService } from '../../../services/orderService';
 
 export default function RankingScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [rankingData, setRankingData] = useState<{
+    product_name: string;
+    category: string;
+    quantity_sold: number;
+    total_revenue: number;
+  }[]>([]);
 
-  const renderItem = ({ item, index }: { item: typeof RANKING_DATA[0], index: number }) => {
-    const isUp = item.change.includes('+');
-    const isDown = item.change.includes('-');
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      // Default to This Month
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
+      const data = await orderService.getProductRankings(startOfMonth, endOfMonth);
+      setRankingData(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  const renderItem = ({ item, index }: { item: typeof rankingData[0], index: number }) => {
     return (
       <View className="flex-row items-center justify-between py-4 border-b border-gray-50 bg-white px-4 rounded-xl mb-3 shadow-sm">
         <View className="flex-row items-center space-x-4 flex-1">
@@ -35,25 +50,18 @@ export default function RankingScreen() {
             )}
           </View>
 
-          <View className={`w-12 h-12 rounded-full ${item.color} items-center justify-center`}>
+          <View className={`w-12 h-12 rounded-full bg-indigo-50 items-center justify-center`}>
             <Text className="text-xl">☕</Text>
           </View>
 
           <View>
-            <Text className="font-bold text-gray-900 text-base">{item.name}</Text>
-            <Text className="text-gray-400 text-xs">{item.cat}</Text>
+            <Text className="font-bold text-gray-900 text-base">{item.product_name}</Text>
+            <Text className="text-gray-400 text-xs">{item.category || 'Uncategorized'}</Text>
           </View>
         </View>
 
         <View className="items-end">
-          <Text className="text-indigo-600 font-bold text-xl">{item.count}</Text>
-          <View className="flex-row items-center">
-            {isUp && <ArrowUp size={12} color="#22c55e" />}
-            {isDown && <ArrowDown size={12} color="#ef4444" />}
-            <Text className={`text-[10px] ml-1 ${isUp ? 'text-green-500' : isDown ? 'text-red-500' : 'text-gray-400'}`}>
-              {item.change}
-            </Text>
-          </View>
+          <Text className="text-indigo-600 font-bold text-xl">{item.quantity_sold}</Text>
           <Text className="text-[10px] text-gray-400">Terjual</Text>
         </View>
       </View>
@@ -72,13 +80,22 @@ export default function RankingScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={RANKING_DATA}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#4f46e5" />
+        </View>
+      ) : (
+        <FlatList
+          data={rankingData}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <Text className="text-center text-gray-400 mt-10">Belum ada data penjualan bulan ini.</Text>
+          }
+        />
+      )}
       <OwnerBottomNav />
     </View>
   );
