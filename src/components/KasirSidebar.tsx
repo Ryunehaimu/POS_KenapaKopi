@@ -19,6 +19,7 @@ interface KasirSidebarProps {
 
 export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
   const router = useRouter();
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -39,20 +40,23 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
   };
 
   const menuItems = [
-    { key: 'dashboard', icon: LayoutDashboard, path: '/kasir/Dashboard' },
-    { key: 'cashier', icon: ShoppingCart, path: '/kasir/Cashier' },
-    { key: 'transactions', icon: History, path: '/kasir/Transactions' },
-    { key: 'menu', icon: Coffee, path: '/kasir/menu' },
-    { key: 'stock', icon: Package, path: '/kasir/StockOpname' },
-    { key: 'categories', icon: Tags, path: '/kasir/categories' },
-    { key: 'attendance', icon: UserCheck, path: '/kasir/Attendance' },
+    { key: 'dashboard', icon: LayoutDashboard, path: '/kasir/Dashboard', label: 'Dashboard' },
+    { key: 'cashier', icon: ShoppingCart, path: '/kasir/Cashier', label: 'Kasir / POS' },
+    { key: 'transactions', icon: History, path: '/kasir/Transactions', label: 'Laporan Transaksi' },
+    { key: 'menu', icon: Coffee, path: '/kasir/menu', label: 'Manajemen Menu' },
+    { key: 'stock', icon: Package, path: '/kasir/StockOpname', label: 'Stok Opname' },
+    { key: 'categories', icon: Tags, path: '/kasir/categories', label: 'Kategori' },
+    { key: 'attendance', icon: UserCheck, path: '/kasir/Attendance', label: 'Absensi' },
   ];
 
   return (
-    <View className="w-20 md:w-24 bg-white border-r border-gray-200 flex-col items-center py-8 justify-between">
-      <View className="items-center space-y-8">
-        {/* Menu Button Placeholder */}
-        <TouchableOpacity className="p-2 rounded-xl hover:bg-gray-100 mb-2">
+    <View className={`bg-white border-r border-gray-200 flex-col py-8 justify-between ${isExpanded ? 'w-64 px-4' : 'w-20 items-center'}`}>
+      <View className="space-y-6">
+        {/* Toggle Button */}
+        <TouchableOpacity 
+            onPress={() => setIsExpanded(!isExpanded)}
+            className={`p-2 rounded-xl hover:bg-gray-100 mb-2 ${isExpanded ? 'self-end' : 'self-center'}`}
+        >
            <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
            <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
            <View className="w-6 h-0.5 bg-gray-800"></View>
@@ -64,22 +68,50 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
              <TouchableOpacity 
                key={item.key}
                onPress={() => item.path ? router.push(item.path as any) : null}
-               className={`p-3 rounded-xl ${isActive ? 'bg-indigo-600 shadow-lg shadow-indigo-300' : 'opacity-50 hover:opacity-100'}`}
+               className={`flex-row items-center rounded-xl ${
+                   isExpanded 
+                    ? 'px-4 py-3 space-x-3 w-full' 
+                    : 'p-3 justify-center aspect-square'
+               } ${isActive ? 'bg-indigo-600 shadow-md shadow-indigo-200' : 'hover:bg-gray-50'}`}
              >
                <item.icon color={isActive ? 'white' : '#4B5563'} size={24} />
+               {isExpanded && (
+                   <Text className={`font-bold ml-3 ${isActive ? 'text-white' : 'text-gray-600'}`}>
+                       {item.label}
+                   </Text>
+               )}
              </TouchableOpacity>
            );
         })}
       </View>
 
-      <View className="items-center space-y-6">
-         <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
-            <Text className="text-white font-bold">K</Text>
-         </View>
-         <Text className="text-xs font-medium text-gray-500">Kasir</Text>
-         <TouchableOpacity onPress={handleLogout}>
-           <LogOut color="#EF4444" size={20} />
-         </TouchableOpacity>
+      <View className={`space-y-6 ${isExpanded ? 'px-4' : 'items-center'}`}>
+         {isExpanded ? (
+             <View className="flex-row items-center space-x-3">
+                 <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
+                    <Text className="text-white font-bold">K</Text>
+                 </View>
+                 <View>
+                     <Text className="font-bold text-gray-900">Kasir</Text>
+                     <Text className="text-xs text-gray-500">Active</Text>
+                 </View>
+             </View>
+         ) : (
+             <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
+                <Text className="text-white font-bold">K</Text>
+             </View>
+         )}
+
+         {isExpanded ? (
+             <TouchableOpacity onPress={handleLogout} className="flex-row items-center space-x-3 p-2 rounded-lg hover:bg-red-50">
+                <LogOut color="#EF4444" size={20} />
+                <Text className="text-red-500 font-bold ml-3">Keluar</Text>
+             </TouchableOpacity>
+         ) : (
+             <TouchableOpacity onPress={handleLogout}>
+               <LogOut color="#EF4444" size={20} />
+             </TouchableOpacity>
+         )}
       </View>
     </View>
   );
