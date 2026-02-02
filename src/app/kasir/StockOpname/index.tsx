@@ -28,13 +28,16 @@ export default function KasirStockOpnameScreen() {
   // Selection Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
+  
+  // Filter State
+  const [logFilter, setLogFilter] = useState('all');
 
   const loadData = async () => {
     try {
       setLoading(true);
       const [ingData, logData] = await Promise.all([
         inventoryService.getIngredients(),
-        inventoryService.getLogs()
+        inventoryService.getLogs({ type: logFilter })
       ]);
       setIngredients(ingData);
       setLogs(logData);
@@ -48,6 +51,11 @@ export default function KasirStockOpnameScreen() {
     }
   };
 
+  // Re-fetch when filter changes
+  React.useEffect(() => {
+      loadData();
+  }, [logFilter]);
+
   const loadPinnedIds = async (allIngredients: Ingredient[]) => {
       try {
           const stored = await AsyncStorage.getItem(PINNED_STORAGE_KEY_KASIR);
@@ -57,7 +65,7 @@ export default function KasirStockOpnameScreen() {
               // Default to first 4
               const defaults = allIngredients.slice(0, 4).map(i => i.id);
               setPinnedIds(defaults);
-              await AsyncStorage.setItem(PINNED_STORAGE_KEY_KASIR, JSON.stringify(defaults));
+              // await AsyncStorage.setItem(PINNED_STORAGE_KEY_KASIR, JSON.stringify(defaults));
           }
       } catch (e) {
           console.error("Failed to load pinned ids", e);
@@ -175,7 +183,8 @@ export default function KasirStockOpnameScreen() {
              </View>
 
              {/* Table Section */}
-             <View className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 min-h-[500px]">
+             <View className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 min-h-[500px] mb-8">
+                {/* ... existing table code ... */}
                 <View className="flex-row justify-between items-center mb-6">
                     <Text className="text-xl font-bold text-gray-900">Stok Bahan</Text>
                     <TouchableOpacity 
@@ -225,6 +234,86 @@ export default function KasirStockOpnameScreen() {
                    </View>
                 )}
              </View>
+
+             {/* === STOCK LOGS SECTION === */}
+             <View className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                <View className="flex-row justify-between items-center mb-6">
+                    <Text className="text-xl font-bold text-gray-900">Riwayat Perubahan Stok</Text>
+                    
+                    {/* Filter Dropdown */}
+     <View className="flex-row bg-gray-100 p-1 rounded-lg">
+                        {['all', 'in', 'out', 'adjustment', 'transaction'].map((type) => {
+                            const isActive = logFilter === type;
+                            return (
+                                <TouchableOpacity 
+                                    key={type}
+                                    onPress={() => setLogFilter(type)}
+                                    style={{
+                                        backgroundColor: isActive ? 'white' : 'transparent',
+                                        shadowOpacity: isActive ? 0.1 : 0,
+                                        shadowRadius: isActive ? 2 : 0,
+                                        elevation: isActive ? 1 : 0,
+                                    }}
+                                    className="px-4 py-2 rounded-md"
+                                >
+                                    <Text className={`capitalize font-medium ${isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+                                        {type === 'adjustment' ? 'Adj' : type}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
+
+                {/* Logs Table Header */}
+                <View className="flex-row items-center py-4 border-b border-gray-200 mb-2">
+                   <View className="flex-1">
+                      <Text className="text-gray-500 font-medium text-sm">Waktu</Text>
+                   </View>
+                   <View className="flex-1">
+                      <Text className="text-gray-500 font-medium text-sm">Bahan</Text>
+                   </View>
+                   <View className="flex-1">
+                      <Text className="text-gray-500 font-medium text-sm">Perubahan</Text>
+                   </View>
+                   <View className="flex-[1.5]">
+                      <Text className="text-gray-500 font-medium text-sm">Keterangan</Text>
+                   </View>
+                </View>
+
+                {/* Logs Content */}
+                {logs.map(log => {
+                    const isPositive = log.change_amount > 0;
+                    return (
+                        <View key={log.id} className="flex-row items-center py-4 border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                           <View className="flex-1">
+                               <Text className="text-gray-900 font-medium">{new Date(log.created_at).toLocaleDateString()} {new Date(log.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                           </View>
+                           <View className="flex-1">
+                               <Text className="text-gray-800 font-bold">{log.ingredients?.name}</Text>
+                               <Text className="text-gray-400 text-xs">{log.ingredients?.unit}</Text>
+                           </View>
+                           <View className="flex-1">
+                               <View className={`self-start px-2 py-1 rounded-md ${isPositive ? 'bg-green-100' : 'bg-red-100'}`}>
+                                    <Text className={`font-bold ${isPositive ? 'text-green-700' : 'text-red-700'}`}>
+                                        {isPositive ? '+' : ''}{log.change_amount}
+                                    </Text>
+                               </View>
+                           </View>
+                           <View className="flex-[1.5]">
+                               <Text className="text-gray-600 text-sm" numberOfLines={2}>{log.notes || '-'}</Text>
+                               <Text className="text-gray-400 text-xs uppercase mt-1">{log.change_type}</Text>
+                           </View>
+                        </View>
+                    );
+                })}
+                {logs.length === 0 && (
+                    <View className="py-20 items-center">
+                        <Text className="text-gray-400">Belum ada riwayat stok.</Text>
+                    </View>
+                )}
+             </View>
+
           </ScrollView>
        </View>
 
