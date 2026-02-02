@@ -12,7 +12,7 @@ import { MonthYearPicker } from '../../../components/MonthYearPicker';
 export default function TransactionsScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'transactions' | 'menu_sales' | 'ingredient_usage'>('transactions');
+    const [activeTab, setActiveTab] = useState<'transactions' | 'menu_sales' | 'ingredient_usage' | 'ingredient_expense'>('transactions');
     const [selectedDate, setSelectedDate] = useState(new Date()); // Defaults to today
     const [isPickerVisible, setPickerVisible] = useState(false);
     
@@ -40,6 +40,14 @@ export default function TransactionsScreen() {
         ingredient_name: string;
         unit: string;
         total_used: number;
+    }[]>([]);
+
+    const [ingredientExpense, setIngredientExpense] = useState<{
+        ingredient_name: string;
+        unit: string;
+        purchase_count: number;
+        total_qty_purchased: number;
+        total_expenditure: number;
     }[]>([]);
 
     const isToday = (date: Date) => {
@@ -70,15 +78,17 @@ export default function TransactionsScreen() {
                 usageEnd = selectedDate;
             }
 
-            const [stats, orders, usage] = await Promise.all([
+            const [stats, orders, usage, expense] = await Promise.all([
                 // Fix: Usage generic Sales Report for both Daily and Monthly
                 orderService.getSalesReport(usageStart, usageEnd),
                 orderService.getRecentOrders(),
-                inventoryService.getIngredientUsage(usageStart, usageEnd)
+                inventoryService.getIngredientUsage(usageStart, usageEnd),
+                inventoryService.getIngredientExpenseReport(usageStart, usageEnd)
             ]);
             setDailyStats(stats);
             setRecentOrders(orders);
             setIngredientUsage(usage);
+            setIngredientExpense(expense);
         } catch (error) {
             console.error(error);
         } finally {
@@ -196,6 +206,13 @@ export default function TransactionsScreen() {
                         >
                             <Text className={`text-lg font-bold ${activeTab === 'ingredient_usage' ? 'text-indigo-600' : 'text-gray-400'}`}>Penggunaan Bahan</Text>
                         </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            onPress={() => setActiveTab('ingredient_expense')}
+                            className={`mr-8 pb-4 ${activeTab === 'ingredient_expense' ? 'border-b-2 border-indigo-600' : ''}`}
+                        >
+                            <Text className={`text-lg font-bold ${activeTab === 'ingredient_expense' ? 'text-indigo-600' : 'text-gray-400'}`}>Pengeluaran</Text>
+                        </TouchableOpacity>
                     </View>
 
                     {/* Content */}
@@ -285,6 +302,31 @@ export default function TransactionsScreen() {
                                         ))}
                                         {ingredientUsage.length === 0 && (
                                             <Text className="text-center text-gray-400 py-10">Belum ada data penggunaan bahan untuk periode ini.</Text>
+                                        )}
+                                    </View>
+                                )}
+
+                                {activeTab === 'ingredient_expense' && (
+                                    <View>
+                                         <View className="flex-row py-4 border-b border-gray-100 mb-2 bg-gray-50 px-4 rounded-t-xl">
+                                            <Text className="flex-[2] text-gray-500 font-bold">Nama Bahan</Text>
+                                            <Text className="flex-[1] text-gray-500 font-bold text-center">Jumlah Beli</Text>
+                                            <Text className="flex-1 text-gray-500 font-bold text-right">
+                                                Total Pengeluaran ({isFilteredByMonth ? 'Bulan Ini' : 'Hari Ini'})
+                                            </Text>
+                                        </View>
+                                        {ingredientExpense.map((item, idx) => (
+                                            <View key={idx} className="flex-row py-4 border-b border-gray-50 px-4 hover:bg-gray-50">
+                                                <View className="flex-[2]">
+                                                    <Text className="text-gray-900 font-bold">{item.ingredient_name}</Text>
+                                                    <Text className="text-gray-400 text-xs">{item.purchase_count}x Pembelian</Text>
+                                                </View>
+                                                <Text className="flex-[1] text-gray-500 font-medium text-center">{item.total_qty_purchased} {item.unit}</Text>
+                                                <Text className="flex-1 text-red-600 font-bold text-right">Rp {item.total_expenditure.toLocaleString()}</Text>
+                                            </View>
+                                        ))}
+                                        {ingredientExpense.length === 0 && (
+                                            <Text className="text-center text-gray-400 py-10">Belum ada pengeluaran bahan untuk periode ini.</Text>
                                         )}
                                     </View>
                                 )}

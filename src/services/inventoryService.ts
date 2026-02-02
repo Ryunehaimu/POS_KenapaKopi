@@ -162,6 +162,29 @@ export const inventoryService = {
       }[];
   },
 
+  async getIngredientExpenseReport(startDate: Date, endDate: Date) {
+      const formatDate = (date: Date) => {
+          const offset = date.getTimezoneOffset() * 60000;
+          const localDate = new Date(date.getTime() - offset);
+          return localDate.toISOString().split('T')[0];
+      };
+
+      const { data, error } = await supabase
+          .rpc('get_ingredient_expense_report', { 
+              start_date: formatDate(startDate),
+              end_date: formatDate(endDate)
+          });
+
+      if (error) throw error;
+      return data as {
+          ingredient_name: string;
+          unit: string;
+          purchase_count: number;
+          total_qty_purchased: number;
+          total_expenditure: number;
+      }[];
+  },
+
   async deleteIngredient(id: string) {
     const { error } = await supabase
       .from('ingredients')

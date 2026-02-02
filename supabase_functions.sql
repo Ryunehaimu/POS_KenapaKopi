@@ -230,6 +230,38 @@ begin
 end;
 $$;
 
+
+-- Function to get ingredient EXPENDITURE (Belanja Bahan) by date range
+create or replace function get_ingredient_expense_report(start_date date, end_date date)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+    v_expense_data json;
+begin
+    select json_agg(t)
+    into v_expense_data
+    from (
+        select 
+            i.name as ingredient_name,
+            i.unit,
+            count(sl.id) as purchase_count,
+            sum(sl.change_amount) as total_qty_purchased,
+            sum(sl.price) as total_expenditure
+        from stock_logs sl
+        join ingredients i on sl.ingredient_id = i.id
+        where date(sl.created_at AT TIME ZONE 'Asia/Jakarta') between start_date and end_date
+        and sl.change_type = 'in'
+        and sl.price > 0 -- Only count actual purchases with cost
+        group by i.id, i.name, i.unit
+        order by total_expenditure desc
+    ) t;
+
+    return coalesce(v_expense_data, '[]'::json);
+end;
+$$;
+
 -- Function to get product sales ranking by date range
 create or replace function get_product_sales_ranking(start_date date, end_date date)
 returns json
