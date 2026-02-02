@@ -35,6 +35,12 @@ export default function TransactionsScreen() {
         menu_sales: []
     });
 
+    // Special state for "Split Pembayaran Hari Ini" card (Always Today)
+    const [todayPaymentStats, setTodayPaymentStats] = useState({
+        cash_revenue: 0,
+        qris_revenue: 0
+    });
+
     const [recentOrders, setRecentOrders] = useState<Order[]>([]);
     const [ingredientUsage, setIngredientUsage] = useState<{
         ingredient_name: string;
@@ -73,22 +79,30 @@ export default function TransactionsScreen() {
                 usageStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
                 usageEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
             } else {
-                // Daily Range (Today)
-                usageStart = selectedDate;
-                usageEnd = selectedDate;
+                // Daily Range (Today) - Full Day
+                usageStart = new Date(selectedDate);
+                usageStart.setHours(0, 0, 0, 0);
+                
+                usageEnd = new Date(selectedDate);
+                usageEnd.setHours(23, 59, 59, 999);
             }
 
-            const [stats, orders, usage, expense] = await Promise.all([
+            const [stats, orders, usage, expense, todayStats] = await Promise.all([
                 // Fix: Usage generic Sales Report for both Daily and Monthly
                 orderService.getSalesReport(usageStart, usageEnd),
-                orderService.getRecentOrders(),
+                orderService.getRecentOrders(usageStart, usageEnd),
                 inventoryService.getIngredientUsage(usageStart, usageEnd),
-                inventoryService.getIngredientExpenseReport(usageStart, usageEnd)
+                inventoryService.getIngredientExpenseReport(usageStart, usageEnd),
+                orderService.getDailyReport(new Date()) // Always fetch today for the widget
             ]);
             setDailyStats(stats);
             setRecentOrders(orders);
             setIngredientUsage(usage);
             setIngredientExpense(expense);
+            setTodayPaymentStats({
+                cash_revenue: todayStats.cash_revenue,
+                qris_revenue: todayStats.qris_revenue
+            });
         } catch (error) {
             console.error(error);
         } finally {
@@ -152,17 +166,7 @@ export default function TransactionsScreen() {
                     </View>
 
                     {/* Summary Cards */}
-                    <View className="flex-row gap-6 mb-8">
-                        <View className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex-row items-center">
-                            <View className="bg-green-100 p-4 rounded-full mr-4">
-                                <Banknote size={24} color="#16a34a" />
-                            </View>
-                            <View>
-                                <Text className="text-gray-500 text-sm font-medium">Total Pendapatan</Text>
-                                <Text className="text-2xl font-bold text-gray-900">Rp {dailyStats.total_revenue.toLocaleString()}</Text>
-                            </View>
-                        </View>
-                        
+                    <View className="flex-row gap-6 mb-8">                        
                         <View className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex-row items-center">
                             <View className="bg-indigo-100 p-4 rounded-full mr-4">
                                 <FileText size={24} color="#4f46e5" />
@@ -178,9 +182,9 @@ export default function TransactionsScreen() {
                                 <CreditCard size={24} color="#2563eb" />
                             </View>
                             <View>
-                                <Text className="text-gray-500 text-sm font-medium">Split Pembayaran</Text>
-                                <Text className="text-xs text-gray-500">Tunai: Rp {dailyStats.cash_revenue.toLocaleString()}</Text>
-                                <Text className="text-xs text-gray-500">QRIS: Rp {dailyStats.qris_revenue.toLocaleString()}</Text>
+                                <Text className="text-gray-500 text-sm font-medium">Split Pembayaran Hari Ini</Text>
+                                <Text className="text-xs text-gray-500">Tunai: Rp {todayPaymentStats.cash_revenue.toLocaleString()}</Text>
+                                <Text className="text-xs text-gray-500">QRIS: Rp {todayPaymentStats.qris_revenue.toLocaleString()}</Text>
                             </View>
                         </View>
                     </View>

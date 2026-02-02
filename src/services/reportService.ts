@@ -218,23 +218,21 @@ export const reportService = {
             // 3. Generate Base64 output
             const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
 
-            // 4. Save to filesystem (Using New API)
-            const sanitizedName = fileName.replace(/[^a-zA-Z0-9]/g, '_');
+            // 4. Save and Share (Cross-platform)
+            const sanitizedName = fileName.replace(/[^a-zA-Z0-9]/g, '_') + '.xlsx';
+            
+            // Use legacy cast or import to ensure we can write
+            const fileUri = (FileSystem.documentDirectory || (FileSystem as any).cacheDirectory) + sanitizedName;
 
-            // Note: In newer expo-file-system, we construct a File object
-            const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-            if (!permissions.granted) {
-                return;
-            }
+            await FileSystem.writeAsStringAsync(fileUri, wbout, {
+                encoding: FileSystem.EncodingType.Base64
+            });
 
-            try {
-                const uri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, sanitizedName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-                await FileSystem.writeAsStringAsync(uri, wbout, { encoding: FileSystem.EncodingType.Base64 });
-                Alert.alert("Sukses", "File berhasil disimpan.");
-            } catch (e) {
-                console.error(e);
-                Alert.alert("Error", "Gagal menyimpan file.");
-            }
+            await Sharing.shareAsync(fileUri, {
+                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                dialogTitle: 'Export Report Excel',
+                UTI: 'com.microsoft.excel.xlsx' // for iOS
+            });
 
         } catch (error) {
             console.error("Excel Export Error:", error);

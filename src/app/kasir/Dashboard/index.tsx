@@ -44,19 +44,34 @@ export default function KasirDashboard() {
       qris_revenue: 0,
       menu_sales: []
   });
+
+  const [monthlyStats, setMonthlyStats] = useState<{
+    menu_sales: {
+      product_name: string;
+      quantity_sold: number;
+      total_revenue: number;
+    }[];
+  }>({
+    menu_sales: []
+  });
   const [lowStockItems, setLowStockItems] = useState<Ingredient[]>([]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [ingData, statsData, lowStockData] = await Promise.all([
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const [ingData, statsData, monthlyData, lowStockData] = await Promise.all([
         inventoryService.getIngredients(),
-        orderService.getDailyReport(new Date()),
+        orderService.getDailyReport(now),
+        orderService.getSalesReport(startOfMonth, now),
         inventoryService.getLowStockIngredients(5) // Threshold 5
       ]);
 
       setIngredients(ingData);
       setDailyStats(statsData);
+      setMonthlyStats({ menu_sales: monthlyData.menu_sales });
       setLowStockItems(lowStockData);
       
       const stored = await AsyncStorage.getItem(WIDGET_STORAGE_KEY);
@@ -179,14 +194,14 @@ export default function KasirDashboard() {
             {/* Ranking Menu (REAL DATA) */}
             <View className="flex-[2] bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
               <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-xl font-bold text-gray-900">Menu Terlaris Hari Ini</Text>
+                <Text className="text-xl font-bold text-gray-900">Menu Terlaris Bulan Ini</Text>
                 <TouchableOpacity onPress={() => router.push('/kasir/ranking')}>
                   <Text className="text-indigo-600 text-xs">Show all {'>'}</Text>
                 </TouchableOpacity>
               </View>
 
               <View className="space-y-6">
-                {dailyStats.menu_sales.slice(0, 4).map((item, idx) => (
+                {monthlyStats.menu_sales.slice(0, 4).map((item, idx) => (
                   <View key={idx} className="flex-row items-center justify-between border-b border-gray-50 pb-4 last:border-0 last:pb-0">
                     <View className="flex-row items-center space-x-4">
                       <View className={`w-12 h-12 rounded-full bg-indigo-100 items-center justify-center`}>
@@ -200,8 +215,8 @@ export default function KasirDashboard() {
                     <Text className="text-indigo-600 font-bold text-xl">{item.quantity_sold} Sold</Text>
                   </View>
                 ))}
-                {dailyStats.menu_sales.length === 0 && (
-                    <Text className="text-gray-400 text-center py-4">Belum ada penjualan hari ini.</Text>
+                {monthlyStats.menu_sales.length === 0 && (
+                    <Text className="text-gray-400 text-center py-4">Belum ada penjualan bulan ini.</Text>
                 )}
               </View>
             </View>

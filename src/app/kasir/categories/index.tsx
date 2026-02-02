@@ -102,14 +102,6 @@ export default function KasirCategoryScreen() {
                    </View>
                 </View>
 
-                <View className="flex-1 bg-gray-100 rounded-3xl p-6 h-32 justify-center">
-                   <Text className="text-gray-500 text-sm font-medium mb-1">Status Aktif</Text>
-                   <View className="flex-row items-baseline">
-                      <Text className="text-4xl font-bold text-gray-900 mr-2">{categories.length}</Text>
-                      <Text className="text-gray-500">Available</Text>
-                   </View>
-                </View>
-
                 <View className="flex-1 bg-indigo-50 rounded-3xl p-6 h-32 justify-center">
                    <Text className="text-indigo-600 text-sm font-medium mb-1">New Category</Text>
                    <TouchableOpacity onPress={() => router.push('/kasir/categories/add')} className="flex-row items-center mt-2">

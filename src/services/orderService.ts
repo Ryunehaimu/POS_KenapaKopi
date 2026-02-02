@@ -59,12 +59,21 @@ export const orderService = {
     return orderData;
   },
 
-  async getRecentOrders() {
-    const { data, error } = await supabase
+  async getRecentOrders(startDate?: Date, endDate?: Date) {
+    let query = supabase
       .from('orders')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(20);
+      .order('created_at', { ascending: false });
+
+    if (startDate && endDate) {
+        query = query
+            .gte('created_at', startDate.toISOString())
+            .lte('created_at', endDate.toISOString());
+    } else {
+        query = query.limit(20);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
     return data as Order[];
