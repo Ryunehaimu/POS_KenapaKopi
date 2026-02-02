@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { 
-  LayoutDashboard, 
-  Package, 
+import {
+  LayoutDashboard,
+  Package,
   Tags,
   LogOut,
   Coffee,
@@ -27,8 +27,8 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
       "Apakah Anda yakin ingin keluar?",
       [
         { text: "Batal", style: "cancel" },
-        { 
-          text: "Keluar", 
+        {
+          text: "Keluar",
           style: "destructive",
           onPress: async () => {
             await authService.signOut();
