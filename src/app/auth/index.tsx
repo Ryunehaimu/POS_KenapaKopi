@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator, Dimensions, useWindowDimensions } from "react-native";
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useRouter } from "expo-router";
 import { authService } from "../../services/authService";
@@ -10,10 +11,30 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { width } = useWindowDimensions();
 
-  // Check session on mount
+  // Check session on mount & Enforce Orientation
   useEffect(() => {
     checkSession();
+    enforceOrientation();
+  }, []);
+
+  const enforceOrientation = async () => {
+    const dim =  ScreenOrientation.getPlatformOrientationLockAsync(); 
+  };
+
+  useEffect(() => {
+    const lock = async () => {
+        const { width, height } = Dimensions.get('screen');
+        const smallest = Math.min(width, height);
+        
+        if (smallest >= 600) {
+            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+        } else {
+            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        }
+    };
+    lock();
   }, []);
 
   const redirectBasedOnRole = (email: string) => {
@@ -38,7 +59,15 @@ export default function Auth() {
     setLoading(true)
     const { error, data: {session} } = await authService.signIn(email, password);
     
-    if (error) Alert.alert(error.message)
+    if (error) {
+        let msg = error.message;
+        if (msg.includes("Invalid login credentials") || msg.includes("invalid_grant")) {
+            msg = "Email atau Password salah.";
+        }
+        Alert.alert("Gagal Masuk", msg);
+        setLoading(false);
+        return;
+    }
     if (session?.user?.email) {
       console.log('SIGNED IN')
       redirectBasedOnRole(session.user.email);

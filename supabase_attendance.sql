@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS attendance_logs (
   employee_id uuid REFERENCES employees(id) ON DELETE SET NULL,
   status text CHECK (status IN ('in', 'out')),
   date date DEFAULT current_date,
-  photo_url text,
+  attendance_photo_url text,
   created_at timestamp WITH time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -29,17 +29,17 @@ CREATE POLICY "Enable all for authenticated users" ON attendance_logs
     FOR ALL USING (auth.role() = 'authenticated');
 
 
--- STORAGE BUCKET: attendance
--- Ensure this bucket exists in your Supabase Storage
+-- STORAGE BUCKET: daily_attendance
+-- Use this bucket for daily logs that can be cleared periodically
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('attendance', 'attendance', true)
+VALUES ('daily_attendance', 'daily_attendance', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage Policies
-CREATE POLICY "Public Access Attendance"
+CREATE POLICY "Public Access Daily Attendance"
   ON storage.objects FOR SELECT
-  USING ( bucket_id = 'attendance' );
+  USING ( bucket_id = 'daily_attendance' );
 
-CREATE POLICY "Authenticated Upload Attendance"
+CREATE POLICY "Authenticated Upload Daily Attendance"
   ON storage.objects FOR INSERT
-  WITH CHECK ( bucket_id = 'attendance' AND auth.role() = 'authenticated' );
+  WITH CHECK ( bucket_id = 'daily_attendance' AND auth.role() = 'authenticated' );

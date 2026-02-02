@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, Alert, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, Alert, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { ChevronLeft, Camera, Calendar } from 'lucide-react-native';
+import { ChevronLeft, Camera, Calendar, X } from 'lucide-react-native';
 import { employeeService, Employee } from '../../../../services/employeeService';
 
 export default function EditEmployeeScreen() {
@@ -16,6 +16,7 @@ export default function EditEmployeeScreen() {
     // Form Data
     const [name, setName] = useState('');
     const [imageUri, setImageUri] = useState('');
+    const [selectedHistoryImage, setSelectedHistoryImage] = useState<string | null>(null);
 
     useEffect(() => {
         loadData();
@@ -163,11 +164,48 @@ export default function EditEmployeeScreen() {
                     {employee?.attendance_logs && employee.attendance_logs.length > 0 ? (
                         employee.attendance_logs.map((log) => (
                             <View key={log.id} className="flex-row justify-between items-center py-3 border-b border-gray-50 last:border-0">
-                                <View className="flex-row items-center">
-                                    <View className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center mr-3">
-                                        <Calendar size={14} color="#6b7280" />
+                                <View className="flex-row items-center flex-1">
+                                    <View className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center mr-3 overflow-hidden">
+                                        {log.attendance_photo_url ? (
+                                            <TouchableOpacity 
+                                                onPress={() => setSelectedHistoryImage(log.attendance_photo_url || null)}
+                                                className="w-full h-full"
+                                            >
+                                                <Image 
+                                                    source={{ uri: log.attendance_photo_url }} 
+                                                    className="w-full h-full"
+                                                />
+                                            </TouchableOpacity>
+                                        ) : (
+                                            <Calendar size={14} color="#6b7280" />
+                                        )}
                                     </View>
-                                    <Text className="font-bold text-gray-800">{new Date(log.date).toLocaleDateString('id-ID')}</Text>
+                                    <View className="flex-col justify-center">
+                                        <Text className="font-bold text-gray-800 text-sm">
+                                            {new Date(log.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </Text>
+                                        <Text className="text-gray-400 text-xs">
+                                            {new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                                        </Text>
+                                        
+                                        {(() => {
+                                            if (log.status === 'Masuk') {
+                                                const { lateMinutes, effectiveTime } = employeeService.calculateLateness(log.created_at);
+                                                if (lateMinutes > 0) {
+                                                    const hours = Math.floor(lateMinutes / 60);
+                                                    const mins = lateMinutes % 60;
+                                                    const durationText = `${hours > 0 ? hours + ' jam ' : ''}${mins} menit`.trim();
+                                                    
+                                                    return (
+                                                        <Text className="text-red-500 text-[10px] font-bold mt-1">
+                                                            Telat: {durationText}
+                                                        </Text>
+                                                    );
+                                                }
+                                            }
+                                            return null;
+                                        })()}
+                                    </View>
                                 </View>
 
                                 <View className={`px-4 py-1.5 rounded-full border ${log.status === 'Masuk' ? 'bg-green-50 border-green-200' :
@@ -193,6 +231,26 @@ export default function EditEmployeeScreen() {
                         <Text className="text-center text-gray-400 py-6">Belum ada riwayat absensi</Text>
                     )}
                 </View>
+
+                {/* History Image Modal */}
+                <Modal visible={!!selectedHistoryImage} transparent={true} animationType="fade">
+                    <View className="flex-1 bg-black/90 justify-center items-center p-4">
+                        <TouchableOpacity 
+                            onPress={() => setSelectedHistoryImage(null)}
+                            className="absolute top-12 right-6 z-10 p-2 bg-white/20 rounded-full"
+                        >
+                            <X color="white" size={24} />
+                        </TouchableOpacity>
+                        
+                        {selectedHistoryImage && (
+                            <Image 
+                                source={{ uri: selectedHistoryImage }} 
+                                className="w-full h-[80%]" 
+                                resizeMode="contain"
+                            />
+                        )}
+                    </View>
+                </Modal>
 
             </ScrollView>
 

@@ -14,6 +14,7 @@ export interface AttendanceLog {
     employee_id: string;
     status: 'Masuk' | 'Izin' | 'Sakit' | 'Alpha' | 'Tidak';
     date: string; // YYYY-MM-DD
+    attendance_photo_url?: string;
     created_at: string;
 }
 
@@ -92,6 +93,77 @@ export const employeeService = {
         return data as AttendanceLog[];
     },
 
+    // Helper to calculate late info (shared for consistency)
+    calculateLateness(logTime: string | Date) {
+        const d = new Date(logTime);
+        const hour = d.getHours();
+        
+        // Shift Targets
+        // < 12:00 -> Target 09:00
+        // >= 12:00 -> Target 15:00
+        const targetHour = hour >= 12 ? 15 : 9;
+        
+        const target = new Date(d);
+        target.setHours(targetHour, 0, 0, 0);
+
+        let lateMinutes = 0;
+        let effectiveTime = new Date(d);
+
+        if (d > target) {
+            const diffMs = d.getTime() - target.getTime();
+            const diffMins = Math.floor(diffMs / 60000);
+
+            if (diffMins > 0) {
+                // Rounding Rule: Minimum 30 mins, Steps of 30 mins
+                // Ceil(diff / 30) * 30
+                lateMinutes = Math.ceil(diffMins / 30) * 30;
+                
+                // Effective Time = Target + LateMinutes
+                effectiveTime = new Date(target.getTime() + lateMinutes * 60000);
+            }
+        }
+
+        return { lateMinutes, effectiveTime, targetHour };
+    },
+
+    async logAttendance(employeeId: string, status: 'Masuk' | 'Tidak', photoBase64: string) {
+        // Calculate Lateness
+        const now = new Date();
+        const { lateMinutes } = this.calculateLateness(now);
+
+        // 1. Upload Photo
+        const timestamp = new Date().getTime();
+        const fileName = `${employeeId}_${status}_${timestamp}.jpg`;
+        const photoUrl = await this.uploadPhoto(photoBase64, fileName);
+
+        // 2. Insert Log
+        const { data, error } = await supabase
+            .from('attendance_logs')
+            .insert({
+                employee_id: employeeId,
+                status, 
+                attendance_photo_url: photoUrl,
+                date: new Date().toISOString().split('T')[0],
+                late_minutes: lateMinutes
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as AttendanceLog;
+    },
+
+    async uploadPhoto(base64Image: string, fileName: string): Promise<string> {
+        const filePath = `logs/${fileName}`;
+        const { data, error } = await supabase.storage
+          .from('daily_attendance')
+          .upload(filePath, decode(base64Image), { contentType: 'image/jpeg', upsert: true });
+
+        if (error) throw error;
+        const { data: { publicUrl } } = supabase.storage.from('daily_attendance').getPublicUrl(filePath);
+        return publicUrl;
+    },
+
     async markAttendance(employeeId: string, status: string, date: string) {
         // Check if exists for this date
         const { data: existing } = await supabase
@@ -126,23 +198,31 @@ export const employeeService = {
     async getAttendanceStats() {
         const today = new Date().toISOString().split('T')[0];
 
-        // Get all active employees count
         const { count: totalEmployees, error: empError } = await supabase
             .from("employees")
             .select("*", { count: 'exact', head: true });
 
         if (empError) throw empError;
 
-        // Get today's logs
+        // Get today's logs with late_minutes if available, or calc on fly
         const { data: logs, error: logError } = await supabase
             .from("attendance_logs")
-            .select("status")
+            .select("*") 
             .eq("date", today);
 
         if (logError) throw logError;
 
         const present = logs?.filter(l => l.status === 'Masuk').length || 0;
-        const late = logs?.filter(l => l.status === 'Terlambat').length || 0; // Assuming 'Terlambat' is a status, or part of logic
+        
+        // Count late. Use stored late_minutes if > 0, OR calc on fly if undefined (for robustness)
+        const late = logs?.filter(l => {
+            if (l.status !== 'Masuk') return false;
+            if (l.late_minutes && l.late_minutes > 0) return true;
+            // Fallback calc
+            const { lateMinutes } = this.calculateLateness(l.created_at);
+            return lateMinutes > 0;
+        }).length || 0;
+
         const permission = logs?.filter(l => ['Izin', 'Sakit'].includes(l.status)).length || 0;
 
         return {

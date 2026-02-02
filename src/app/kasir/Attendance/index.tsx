@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Ima
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as FaceDetector from 'expo-face-detector';
 import { ArrowLeft, RefreshCcw, Camera, User } from 'lucide-react-native';
+
 import { useRouter } from 'expo-router';
 import { attendanceService, Employee, AttendanceLog } from '../../../services/attendanceService';
 import KasirSidebar from '../../../components/KasirSidebar';
@@ -15,10 +16,11 @@ export default function AttendancePage() {
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<any>(null);
+  
+  // Manual Selection State
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [attendanceResult, setAttendanceResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -47,9 +49,11 @@ export default function AttendancePage() {
           base64: true,
         });
 
-        if (!photo) throw new Error("Gagal mengambil gambar");
+        if (!photo || !photo.base64) throw new Error("Gagal mengambil gambar");
 
-        // Validate Face
+        setCapturedPhoto(photo);
+
+        // 1. Detect Face
         const options = {
            mode: FaceDetector.FaceDetectorMode.fast,
            detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
@@ -59,15 +63,18 @@ export default function AttendancePage() {
         const result = await FaceDetector.detectFacesAsync(photo.uri, options);
 
         if (result.faces.length > 0) {
-           setCapturedPhoto(photo);
+           // 2. Open Selection Modal instead of Auto-Identify
            setShowEmployeeModal(true);
            fetchEmployees(); 
         } else {
-           Alert.alert("Wajah Tidak Terdeteksi", "Mohon pastikan wajah anda terlihat jelas di kamera.");
+           Alert.alert("Wajah Tidak Terdeteksi", "Mohon pastikan wajah anda terlihat jelas di kamera.", [
+             { text: "Coba Lagi", onPress: resetFlow }
+           ]);
         }
 
       } catch (error) {
         Alert.alert("Error", "Gagal mengambil foto.");
+        resetFlow();
       } finally {
         setIsProcessing(false);
       }
@@ -77,24 +84,23 @@ export default function AttendancePage() {
   const handleEmployeeSelect = async (employee: Employee) => {
     setShowEmployeeModal(false);
     setIsProcessing(true);
-    setAttendanceResult(null);
 
     try {
-      // 1. Check if already clocked in today
+      // 3. Process Attendance (Check-in Only)
+      // Check if already clocked in today
       const existingLog = await attendanceService.getTodayLog(employee.id);
 
       if (existingLog) {
          const time = new Date(existingLog.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-         const date = new Date(existingLog.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
          
          Alert.alert(
              "Sudah Absen",
-             `Halo ${employee.name}, anda sudah melakukan absensi ${existingLog.status === 'in' ? 'Masuk' : 'Pulang'} hari ini pada pukul ${time}, ${date}.`,
+             `Halo ${employee.name}, anda sudah melakukan absensi hari ini pada pukul ${time}.`,
              [{ text: "OK", onPress: resetFlow }]
          );
       } else {
-         // 2. Perform Clock In
-         await attendanceService.logAttendance(employee.id, 'in', capturedPhoto.base64);
+         // Perform Clock In
+         await attendanceService.logAttendance(employee.id, 'Masuk', capturedPhoto.base64);
          Alert.alert(
             "Berhasil Absen",
             `Selamat Datang, ${employee.name}! Absensi berhasil dicatat.`,
@@ -102,19 +108,19 @@ export default function AttendancePage() {
          );
       }
 
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Gagal memproses absensi.");
-      resetFlow();
+    } catch (error: any) {
+      // console.error(error); // Suppress LogBox
+      const errorMessage = error.message || "Gagal memproses absensi.";
+      Alert.alert("Gagal", errorMessage, [{ text: "OK", onPress: resetFlow }]);
     } finally {
-      setIsProcessing(false);
+        setIsProcessing(false);
     }
   };
 
   const resetFlow = () => {
       setCapturedPhoto(null);
-      setAttendanceResult(null);
       setIsProcessing(false);
+      setShowEmployeeModal(false);
   };
 
   if (!permission || !permission.granted) {
@@ -142,8 +148,8 @@ export default function AttendancePage() {
         <View className="flex-1 justify-between p-8 bg-black/30">
             <View className="flex-row justify-between items-start">
                <View>
-                   <Text className="text-white text-3xl font-bold">Menu Absensi</Text>
-                   <Text className="text-gray-200 text-lg">Arahkan wajah ke kamera dan ambil foto</Text>
+                   <Text className="text-white text-3xl font-bold">Absensi Masuk</Text>
+                   <Text className="text-gray-200 text-lg">Arahkan wajah ke kamera untuk absen</Text>
                </View>
                <View className="bg-white/20 p-2 rounded-lg">
                    <Text className="text-white font-bold">
@@ -154,7 +160,12 @@ export default function AttendancePage() {
 
             <View className="items-center pb-8">
                {isProcessing ? (
-                   <ActivityIndicator size="large" color="#4F46E5" />
+                   <View className="items-center">
+                       <ActivityIndicator size="large" color="#4F46E5" />
+                       <Text className="text-white mt-4 font-bold text-lg">
+                           {capturedPhoto ? "Memproses..." : "Memproses..."}
+                       </Text>
+                   </View>
                ) : (
                    <View className="flex-row items-center space-x-8">
                        <TouchableOpacity 
@@ -180,7 +191,7 @@ export default function AttendancePage() {
         <Modal visible={showEmployeeModal} animationType="slide" transparent>
             <View className="flex-1 bg-black/80 justify-end">
                 <View className="bg-white rounded-t-3xl h-[70%] p-6">
-                    <Text className="text-2xl font-bold text-gray-900 mb-2">Konfirmasi Identitas</Text>
+                    <Text className="text-2xl font-bold text-gray-900 mb-2">Pilih Nama Anda</Text>
                     <Text className="text-gray-500 mb-6">Silahkan pilih nama anda dari daftar di bawah:</Text>
 
                     {loadingEmployees ? (
