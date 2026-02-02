@@ -451,13 +451,31 @@ export default function ReportsScreen() {
 
             {/* Floating Export Button */}
             {!loading && data.length > 0 && (
-                <View className="absolute bottom-24 right-6 left-6">
+                <View className="absolute bottom-24 right-6 left-6 flex-row gap-4">
                     <TouchableOpacity
-                        onPress={handleExport}
-                        className="bg-red-600 p-4 rounded-xl shadow-lg flex-row justify-center items-center gap-2"
+                        onPress={async () => {
+                            try {
+                                setLoading(true);
+                                const fileName = `${typeLabel}_${periodLabel}`;
+                                await reportService.generateExcel(fileName, data);
+                            } catch (e) {
+                                console.error(e);
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}
+                        className="flex-1 bg-green-600 p-4 rounded-xl shadow-lg flex-row justify-center items-center gap-2"
                     >
                         <Download color="white" size={20} />
-                        <Text className="text-white font-bold text-base">Export PDF</Text>
+                        <Text className="text-white font-bold text-base">Excel</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={handleExport}
+                        className="flex-1 bg-red-600 p-4 rounded-xl shadow-lg flex-row justify-center items-center gap-2"
+                    >
+                        <Download color="white" size={20} />
+                        <Text className="text-white font-bold text-base">PDF</Text>
                     </TouchableOpacity>
                 </View>
             )}

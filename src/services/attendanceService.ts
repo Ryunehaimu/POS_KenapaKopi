@@ -51,25 +51,25 @@ export const attendanceService = {
 
   // Helper to calculate late info
   calculateLateness(logTime: string | Date) {
-      const d = new Date(logTime);
-      const hour = d.getHours();
-      
-      const targetHour = hour >= 12 ? 15 : 9;
-      const target = new Date(d);
-      target.setHours(targetHour, 0, 0, 0);
+    const d = new Date(logTime);
+    const hour = d.getHours();
 
-      let lateMinutes = 0;
+    const targetHour = hour >= 12 ? 15 : 9;
+    const target = new Date(d);
+    target.setHours(targetHour, 0, 0, 0);
 
-      if (d > target) {
-          const diffMs = d.getTime() - target.getTime();
-          const diffMins = Math.floor( diffMs / 60000 );
+    let lateMinutes = 0;
 
-          if (diffMins > 0) {
-              lateMinutes = Math.ceil(diffMins / 30) * 30;
-          }
+    if (d > target) {
+      const diffMs = d.getTime() - target.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+
+      if (diffMins > 0) {
+        lateMinutes = Math.ceil(diffMins / 30) * 30;
       }
+    }
 
-      return lateMinutes;
+    return lateMinutes;
   },
 
   // Clock In/Out
@@ -81,7 +81,7 @@ export const attendanceService = {
       // Store Hours Validation (Block 22:00 - 07:00)
       // "Jam tutup sampai 2 jam sebelum buka (09:00 - 2 = 07:00)"
       if (hour >= 22 || hour < 7) {
-          throw new Error("Toko sedang tutup. Absensi hanya dapat dilakukan mulai pukul 07:00 pagi.");
+        throw new Error("Toko sedang tutup. Absensi hanya dapat dilakukan mulai pukul 07:00 pagi.");
       }
 
       // Calculate Lateness
@@ -144,25 +144,25 @@ export const attendanceService = {
     // Count unique employees
     const uniqueEmployees = new Set(data.map(log => log.employee_id));
     return uniqueEmployees.size;
+  },
   // Identify user from photo (MOCK IMPLEMENTATION)
   // In a real app, this would send the photo to a Face Recognition API
   async identifyUser(photoBase64: string): Promise<Employee | null> {
     // SIMULATION: Just return the first employee found to demonstrate flow
     // Replace this logic with actual API call to AWS Rekognition / Azure Face
-    
+
     console.log("Simulating Face Recognition...");
-    
+
     // Artificial delay
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     const employees = await this.getEmployees();
     if (employees.length > 0) {
-        // Return a random employee for simulation
-        // const randomIndex = Math.floor(Math.random() * employees.length);
-        // return employees[randomIndex];
-        return employees[0]; // Always return the first one for consistent testing
+      // Return a random employee for simulation
+      // const randomIndex = Math.floor(Math.random() * employees.length);
+      // return employees[randomIndex];
+      return employees[0]; // Always return the first one for consistent testing
     }
-    
     return null;
   }
 };
