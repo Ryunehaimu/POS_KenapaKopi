@@ -1,6 +1,8 @@
 import { supabase } from "../lib/supabase";
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as XLSX from 'xlsx';
 import { Alert } from "react-native";
 
 export type ReportType = 'ingredient_expense' | 'transaction_report' | 'best_selling_menu' | 'operational_expense' | 'net_revenue';
@@ -202,6 +204,42 @@ export const reportService = {
             amount: netRevenue,
             type: 'net'
         }];
+    },
+
+    async generateExcel(fileName: string, data: any[]) {
+        try {
+            // 1. Create Worksheet from Data
+            const ws = XLSX.utils.json_to_sheet(data);
+
+            // 2. Create Workbook and append sheet
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Laporan");
+
+            // 3. Generate Base64 output
+            const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+
+            // 4. Save to filesystem (Using New API)
+            const sanitizedName = fileName.replace(/[^a-zA-Z0-9]/g, '_');
+
+            // Note: In newer expo-file-system, we construct a File object
+            const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            if (!permissions.granted) {
+                return;
+            }
+
+            try {
+                const uri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, sanitizedName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                await FileSystem.writeAsStringAsync(uri, wbout, { encoding: FileSystem.EncodingType.Base64 });
+                Alert.alert("Sukses", "File berhasil disimpan.");
+            } catch (e) {
+                console.error(e);
+                Alert.alert("Error", "Gagal menyimpan file.");
+            }
+
+        } catch (error) {
+            console.error("Excel Export Error:", error);
+            Alert.alert("Error", "Gagal export Excel");
+        }
     },
 
     async generatePDF(title: string, periodInfo: string, htmlContent: string) {
