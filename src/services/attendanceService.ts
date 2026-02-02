@@ -24,7 +24,7 @@ export const attendanceService = {
       .from('employees')
       .select('*')
       .order('name');
-    
+
     if (error) throw error;
     return data as Employee[];
   },
@@ -32,7 +32,7 @@ export const attendanceService = {
   // Upload photo to storage
   async uploadPhoto(base64Image: string, fileName: string) {
     const filePath = `logs/${fileName}`;
-    
+
     const { data, error } = await supabase.storage
       .from('daily_attendance')
       .upload(filePath, decode(base64Image), {
@@ -129,6 +129,21 @@ export const attendanceService = {
     return data as AttendanceLog | null;
   },
 
+  // Get count of employees present today
+  async getDailyAttendanceCount() {
+    const today = new Date().toISOString().split('T')[0];
+    // Get all 'in' logs for today
+    const { data, error } = await supabase
+      .from('attendance_logs')
+      .select('employee_id')
+      .eq('date', today)
+      .eq('status', 'Masuk');
+
+    if (error) throw error;
+
+    // Count unique employees
+    const uniqueEmployees = new Set(data.map(log => log.employee_id));
+    return uniqueEmployees.size;
   // Identify user from photo (MOCK IMPLEMENTATION)
   // In a real app, this would send the photo to a Face Recognition API
   async identifyUser(photoBase64: string): Promise<Employee | null> {

@@ -6,6 +6,7 @@ import OwnerBottomNav from '../../../components/OwnerBottomNav';
 import { reportService, ReportType } from '../../../services/reportService';
 
 const REPORT_TYPES: { label: string; value: ReportType }[] = [
+    { label: 'Penghasilan Bersih', value: 'net_revenue' },
     { label: 'Laporan Transaksi', value: 'transaction_report' },
     { label: 'Menu Terlaris', value: 'best_selling_menu' },
     { label: 'Pengeluaran Bahan', value: 'ingredient_expense' },
@@ -23,7 +24,7 @@ export default function ReportsScreen() {
     const [data, setData] = useState<any[]>([]);
 
     // Filters
-    const [selectedType, setSelectedType] = useState<ReportType>('transaction_report');
+    const [selectedType, setSelectedType] = useState<ReportType>('net_revenue');
 
     // Range States
     const now = new Date();
@@ -59,6 +60,8 @@ export default function ReportsScreen() {
                 result = await reportService.getOperationalExpenseReport(startDate, endDate);
             } else if (selectedType === 'transaction_report') {
                 result = await reportService.getTransactionReport(startDate, endDate);
+            } else if (selectedType === 'net_revenue') {
+                result = await reportService.getNetRevenueReport(startDate, endDate);
             }
             setData(result);
         } catch (error) {
@@ -71,11 +74,12 @@ export default function ReportsScreen() {
 
     // Memoized Totals and Labels
     const grandTotal = React.useMemo(() => {
+        if (selectedType === 'net_revenue') return 0; // Net Revenue has its own calculation in the rows
         return data.reduce((acc, curr) => {
             const val = curr.totalCost ?? curr.totalRevenue ?? curr.totalAmount ?? 0;
             return acc + val;
         }, 0);
-    }, [data]);
+    }, [data, selectedType]);
 
     const typeLabel = React.useMemo(() => {
         return REPORT_TYPES.find(t => t.value === selectedType)?.label || '';
@@ -96,7 +100,29 @@ export default function ReportsScreen() {
             let html = '';
 
             // Build HTML Table based on Type
-            if (selectedType === 'ingredient_expense') {
+            if (selectedType === 'net_revenue') {
+                html = `
+                    <h3>Ringkasan Penghasilan Bersih</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Keterangan</th>
+                                <th class="text-right">Jumlah</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map((item: any) => `
+                                <tr>
+                                    <td>${item.title}</td>
+                                    <td class="text-right ${item.type === 'net' ? 'total-row' : ''} ${item.type === 'expense' ? 'text-red' : (item.type === 'income' ? 'text-green' : '')}">
+                                        Rp ${(item.amount || 0).toLocaleString('id-ID')}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else if (selectedType === 'ingredient_expense') {
                 html = `
                     <table>
                         <thead>
@@ -243,7 +269,7 @@ export default function ReportsScreen() {
             {/* Header */}
             <View className="bg-white px-6 pt-12 pb-4 shadow-sm z-10">
                 <View className="flex-row items-center mb-4 gap-4">
-                    <TouchableOpacity onPress={() => router.back()} className="p-2 bg-gray-100 rounded-full">
+                    <TouchableOpacity onPress={() => router.back()}>
                         <ChevronLeft size={24} color="#374151" />
                     </TouchableOpacity>
                     <Text className="text-xl font-bold text-gray-800">Laporan</Text>
@@ -253,7 +279,7 @@ export default function ReportsScreen() {
                 <View className="space-y-3">
                     {/* Report Type Selector */}
                     <TouchableOpacity
-                        className="flex-row justify-between items-center bg-gray-100 p-3 rounded-lg border border-gray-200"
+                        className="flex-row justify-between items-center bg-gray-100 p-3 rounded-lg border border-gray-200 mb-2"
                         onPress={() => setShowTypePicker(!showTypePicker)}
                     >
                         <Text className="font-medium text-gray-700">
@@ -335,6 +361,11 @@ export default function ReportsScreen() {
                                     <Text className="flex-[1.5] font-bold text-gray-500 text-xs text-left">Pelanggan</Text>
                                     <Text className="flex-[1.5] font-bold text-gray-500 text-xs text-right">Total</Text>
                                 </>
+                            ) : selectedType === 'net_revenue' ? (
+                                <>
+                                    <Text className="flex-[3] font-bold text-gray-500 text-xs text-left">Keterangan</Text>
+                                    <Text className="flex-[2] font-bold text-gray-500 text-xs text-right">Jumlah</Text>
+                                </>
                             ) : (
                                 <>
                                     <Text className="flex-[2] font-bold text-gray-500 text-xs text-left">
@@ -357,7 +388,7 @@ export default function ReportsScreen() {
                             </View>
                         ) : (
                             data.map((item, idx) => (
-                                <View key={idx} className="flex-row p-3 border-b border-gray-50 items-center">
+                                <View key={idx} className={`flex-row p-3 border-b border-gray-50 items-center ${item.type === 'net' ? 'bg-indigo-50 border-t border-indigo-100' : ''}`}>
                                     {selectedType === 'transaction_report' ? (
                                         <>
                                             <Text className="flex-1 text-gray-600 text-[10px]">{(item.date || '').split(',')[0]}</Text>
@@ -365,6 +396,18 @@ export default function ReportsScreen() {
                                             <Text className="flex-[1.5] text-gray-600 text-[10px]" numberOfLines={1}>{item.customerName || 'Pelanggan'}</Text>
                                             <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
                                                 Rp {(item.totalAmount ?? 0).toLocaleString('id-ID')}
+                                            </Text>
+                                        </>
+                                    ) : selectedType === 'net_revenue' ? (
+                                        <>
+                                            <Text className={`flex-[3] text-sm ${item.type === 'net' ? 'font-bold text-indigo-900' : 'text-gray-700'}`}>
+                                                {item.title}
+                                            </Text>
+                                            <Text className={`flex-[2] text-right text-sm font-bold ${item.type === 'income' ? 'text-green-600' :
+                                                item.type === 'expense' ? 'text-red-500' :
+                                                    'text-indigo-700'
+                                                }`}>
+                                                {item.type === 'expense' ? '- ' : ''}Rp {(item.amount || 0).toLocaleString('id-ID')}
                                             </Text>
                                         </>
                                     ) : (
@@ -394,7 +437,7 @@ export default function ReportsScreen() {
                         )}
 
                         {/* Footer Totals */}
-                        {data.length > 0 && (
+                        {data.length > 0 && selectedType !== 'net_revenue' && (
                             <View className="bg-indigo-50 p-3 flex-row justify-between items-center border-t border-indigo-100">
                                 <Text className="font-bold text-indigo-900">Total</Text>
                                 <Text className="font-bold text-indigo-900 text-base">
