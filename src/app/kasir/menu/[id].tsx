@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Modal, FlatList } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Modal, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Plus, Trash2, Save, Upload, X, ChevronDown } from 'lucide-react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as ImagePicker from 'expo-image-picker';
 import { categoryService, Category } from '../../../services/categoryService';
 import { inventoryService, Ingredient } from '../../../services/inventoryService';
@@ -231,13 +230,14 @@ export default function EditMenuScreen() {
                 </TouchableOpacity>
             </View>
 
-            <KeyboardAwareScrollView 
-                contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+            <KeyboardAvoidingView 
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
                 className="flex-1"
-                enableOnAndroid={true}
-                extraHeight={200}
-                extraScrollHeight={100}
             >
+                <ScrollView 
+                    contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+                    className="flex-1"
+                >
                 <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     
                     {/* Image Upload */}
@@ -377,7 +377,8 @@ export default function EditMenuScreen() {
                     </View>
 
                 </View>
-            </KeyboardAwareScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
              {/* Fixed Bottom Action Bar */}
              <View className="p-6 bg-white border-t border-gray-100 shadow-lg">
