@@ -189,14 +189,14 @@ export default function KasirDashboard() {
           )}
 
           {/* 4. BOTTOM SECTION: RANKING & STOCK */}
-          <View className="flex-row gap-6">
+          <View className="flex-col gap-6">
             
             {/* Ranking Menu (REAL DATA) */}
             <View className="flex-[2] bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
               <View className="flex-row justify-between items-center mb-6">
                 <Text className="text-xl font-bold text-gray-900">Menu Terlaris Bulan Ini</Text>
                 <TouchableOpacity onPress={() => router.push('/kasir/ranking')}>
-                  <Text className="text-indigo-600 text-xs">Show all {'>'}</Text>
+                  <Text className="text-indigo-600 text-md">Show all</Text>
                 </TouchableOpacity>
               </View>
 
@@ -204,7 +204,7 @@ export default function KasirDashboard() {
                 {monthlyStats.menu_sales.slice(0, 4).map((item, idx) => (
                   <View key={idx} className="flex-row items-center justify-between border-b border-gray-50 pb-4 last:border-0 last:pb-0">
                     <View className="flex-row items-center space-x-4">
-                      <View className={`w-12 h-12 rounded-full bg-indigo-100 items-center justify-center`}>
+                      <View className={`w-12 h-12 rounded-full bg-indigo-100 items-center justify-center mr-3 my-5`}>
                           <Text className="font-bold text-indigo-600">{idx + 1}</Text>
                       </View>
                       <View>
@@ -233,22 +233,21 @@ export default function KasirDashboard() {
                
                <Text className="font-bold text-indigo-900 mb-4 text-lg">Monitor Pilihan</Text>
 
-               <View className="flex-row gap-4">
+               <View className="flex-row flex-wrap gap-4">
                   {selectedWidgetIds.map((id: string) => {
                     const item = ingredients.find((i: Ingredient) => i.id === id);
                     if (!item) return null;
                     
-                    const isLow = item.current_stock < 5; // Threshold 5
+                    const isLow = item.current_stock < 5;
 
                     return (
-                      <View key={id} className="flex-1 bg-white rounded-2xl p-4 shadow-sm items-center justify-between h-32">
-                          <Text className="text-gray-500 font-bold text-sm text-center" numberOfLines={1}>
+                      <View key={id} className="bg-white rounded-2xl p-4 shadow-sm h-32 content-center items-center w-40 justify-center">
+                          <Text className="text-gray-500 font-bold text-sm" numberOfLines={1}>
                               {item.name}
                           </Text>
                           
-                          <View className="items-center">
-                              <Text className="text-3xl font-bold text-gray-900">{item.current_stock}</Text>
-                              <Text className="text-xs text-gray-400 font-medium lowercase">{item.unit}</Text>
+                          <View className="">
+                              <Text className="text-3xl font-bold text-gray-900">{item.current_stock} <Text className="text-xs text-gray-400 font-medium lowercase">{item.unit}</Text></Text>
                           </View>
 
                           <View className={`px-3 py-1 rounded-full ${isLow ? 'bg-red-100' : 'bg-green-100'}`}>
