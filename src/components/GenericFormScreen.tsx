@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Save, ChevronDown } from 'lucide-react-native';
 
@@ -87,13 +86,11 @@ export default function GenericFormScreen({
           </View>
        </View>
 
-      <KeyboardAwareScrollView 
-          enableOnAndroid={true}
-          enableAutomaticScroll={true}
-          extraScrollHeight={100}
-          contentContainerStyle={{ padding: 24 }}
+      <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
        >
+        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
             <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                {fields.map((field, index) => renderField(field, index))}
 
@@ -114,7 +111,8 @@ export default function GenericFormScreen({
                   )}
                </TouchableOpacity>
             </View>
-       </KeyboardAwareScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

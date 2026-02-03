@@ -2,14 +2,14 @@
   "expo": {
     "name": "POS Kenapa Kopi",
     "scheme": "POS Kenapa Kopi",
-    "slug": "POS Kenapa Kopi",
+    "slug": "pos-kenapa-kopi",
     "version": "1.0.0",
     "orientation": "landscape",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon-custom.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-custom.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon-custom.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -27,7 +27,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.pos"
+      "package": "com.kenapakopi.pos"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -42,6 +42,12 @@
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for attendance."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2cb908d4-18e7-47d8-983c-8880a67f15e0"
+      }
+    }
   }
 }
