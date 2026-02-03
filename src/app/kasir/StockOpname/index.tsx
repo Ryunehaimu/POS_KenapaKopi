@@ -173,7 +173,7 @@ export default function KasirStockOpnameScreen() {
              </View>
 
              {/* Summary Cards */}
-             <View className="flex-row mb-8">
+             <View className="flex-row mb-8 gap-3">
                 {pinnedIds.map((id, index) => renderSummaryCard(id, index))}
                 {pinnedIds.length < 4 && (
                     <TouchableOpacity onPress={openSelectionModal} className="flex-1 min-w-[22%] bg-gray-50 border-2 border-dashed border-gray-200 p-6 rounded-3xl h-32 justify-center items-center mr-4 last:mr-0">
