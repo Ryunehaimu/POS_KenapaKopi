@@ -69,7 +69,7 @@ export default function Auth() {
         return;
     }
     if (session?.user?.email) {
-      console.log('SIGNED IN')
+
       redirectBasedOnRole(session.user.email);
     }
     setLoading(false)

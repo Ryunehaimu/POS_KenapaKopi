@@ -87,7 +87,7 @@ export default function EditEmployeeScreen() {
                 try {
                     finalImageUrl = await employeeService.uploadProfilePhoto(imageUri);
                 } catch (e) {
-                    console.log("Upload failed");
+
                 }
             }
 

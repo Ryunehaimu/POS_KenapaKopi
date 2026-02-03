@@ -15,6 +15,8 @@ export interface AttendanceLog {
     status: 'Masuk' | 'Izin' | 'Sakit' | 'Alpha' | 'Tidak';
     date: string; // YYYY-MM-DD
     attendance_photo_url?: string;
+    late_minutes?: number;
+    notes?: string;
     created_at: string;
 }
 
@@ -153,6 +155,85 @@ export const employeeService = {
         return data as AttendanceLog;
     },
 
+    async getEmployeeAttendanceByMonth(employeeId: string, month: number, year: number) {
+        // Construct start and end dates for the month
+        // month is 1-12
+        const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
+        const nextMonth = month === 12 ? 1 : month + 1;
+        const nextYear = month === 12 ? year + 1 : year;
+        const endDateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`; 
+
+        const { data: logs, error } = await supabase
+            .from("attendance_logs")
+            .select("*")
+            .eq("employee_id", employeeId)
+            .gte("date", startDateStr)
+            .lt("date", endDateStr)
+            .order("date", { ascending: false });
+
+        if (error) throw error;
+
+        // Process logs into a map for easy lookup
+        const logMap = new Map<string, AttendanceLog>();
+        logs?.forEach((log) => {
+            logMap.set(log.date, log as AttendanceLog);
+        });
+
+        // Generate all dates for the month
+        const results: AttendanceLog[] = [];
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(nextYear, nextMonth - 1, 0); // Last day of month
+        
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const currentHour = now.getHours();
+        const CLOSING_HOUR = 22; // 10 PM
+
+        // Iterate from last day to first day (descending order)
+        for (let d = endDate; d >= startDate; d.setDate(d.getDate() - 1)) {
+             // Create a new date object to avoid reference issues
+             const dateObj = new Date(d);
+             // Use local time components to avoid UTC shift
+             const yearStr = dateObj.getFullYear();
+             const monthStr = String(dateObj.getMonth() + 1).padStart(2, '0');
+             const dayStr = String(dateObj.getDate()).padStart(2, '0');
+             const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
+             
+             // If we have a log, use it
+             if (logMap.has(dateStr)) {
+                 results.push(logMap.get(dateStr)!);
+             } else {
+                 // Check if we should mark as Alpha
+                 // Condition: Date is in the past OR (Date is Today AND Time > Closing Time)
+                 // Also ensure we don't mark future dates
+                 
+                 let isAlpha = false;
+
+                 if (dateStr < todayStr) {
+                     isAlpha = true;
+                 } else if (dateStr === todayStr) {
+                     if (currentHour >= CLOSING_HOUR) {
+                         isAlpha = true;
+                     }
+                 }
+
+                 if (isAlpha) {
+                     results.push({
+                         id: `alpha-${dateStr}`,
+                         employee_id: employeeId,
+                         status: 'Alpha',
+                         date: dateStr,
+                         // Use pseudo status time 23:59:59
+                         created_at: `${dateStr}T23:59:59`,
+                         // No photo for Alpha
+                     });
+                 }
+             }
+        }
+
+        return results;
+    },
+
     async uploadPhoto(base64Image: string, fileName: string): Promise<string> {
         const filePath = `logs/${fileName}`;
         const { data, error } = await supabase.storage
@@ -231,6 +312,45 @@ export const employeeService = {
             late,
             permission
         };
+    },
+
+    async updateAttendanceStatus(employeeId: string, date: string, status: string, notes?: string) {
+        // Check if log exists
+        const { data: existing } = await supabase
+            .from("attendance_logs")
+            .select("id")
+            .eq("employee_id", employeeId)
+            .eq("date", date)
+            .single();
+
+        if (existing) {
+            // Update existing
+            const { data, error } = await supabase
+                .from("attendance_logs")
+                .update({ status, notes })
+                .eq("id", existing.id)
+                .select()
+                .single();
+            
+            if (error) throw error;
+            return data;
+        } else {
+            // Insert new (was synthetic Alpha)
+            const { data, error } = await supabase
+                .from("attendance_logs")
+                .insert({
+                    employee_id: employeeId,
+                    status,
+                    notes,
+                    date,
+                    late_minutes: 0 // Authorized absence is not "late"
+                })
+                .select()
+                .single();
+            
+            if (error) throw error;
+            return data;
+        }
     },
 
     async uploadProfilePhoto(uri: string) {

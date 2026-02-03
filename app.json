@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "pos",
-    "scheme": "pos",
-    "slug": "pos",
+    "name": "POS Kenapa Kopi",
+    "scheme": "POS Kenapa Kopi",
+    "slug": "POS Kenapa Kopi",
     "version": "1.0.0",
     "orientation": "landscape",
     "icon": "./assets/icon.png",

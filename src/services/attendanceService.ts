@@ -151,7 +151,7 @@ export const attendanceService = {
     // SIMULATION: Just return the first employee found to demonstrate flow
     // Replace this logic with actual API call to AWS Rekognition / Azure Face
 
-    console.log("Simulating Face Recognition...");
+
 
     // Artificial delay
     await new Promise(resolve => setTimeout(resolve, 1500));

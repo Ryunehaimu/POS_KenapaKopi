@@ -109,7 +109,7 @@ export default function AttendancePage() {
       }
 
     } catch (error: any) {
-      // console.error(error); // Suppress LogBox
+
       const errorMessage = error.message || "Gagal memproses absensi.";
       Alert.alert("Gagal", errorMessage, [{ text: "OK", onPress: resetFlow }]);
     } finally {

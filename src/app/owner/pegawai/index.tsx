@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Plus, ChevronLeft, Edit2, Trash2, Users, UserCheck } from 'lucide-react-native';
+import { Plus, ChevronLeft, Edit2, Trash2, Users, UserCheck, Calendar } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { employeeService, Employee } from '../../../services/employeeService';
 import OwnerBottomNav from '../../../components/OwnerBottomNav';
@@ -148,6 +148,12 @@ export default function EmployeeListScreen() {
                                 </View>
 
                                 <View className="flex-row gap-2">
+                                    <TouchableOpacity
+                                        onPress={() => router.push(`/owner/pegawai/history/${emp.id}`)}
+                                        className="bg-blue-500 p-2 rounded-lg"
+                                    >
+                                        <Calendar size={16} color="white" />
+                                    </TouchableOpacity>
                                     <TouchableOpacity
                                         onPress={() => router.push(`/owner/pegawai/edit/${emp.id}`)}
                                         className="bg-indigo-500 p-2 rounded-lg"
