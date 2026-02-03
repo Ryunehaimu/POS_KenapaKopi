@@ -45,14 +45,26 @@ export interface MergedExpense {
 export const inventoryService = {
   // ... existing methods ...
 
-  async getIngredients() {
-    const { data, error } = await supabase
+  async getIngredients(search?: string, page: number = 1, limit: number = 10) {
+    let query = supabase
       .from('ingredients')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('name', { ascending: true });
 
+    if (search) {
+      query = query.ilike('name', `%${search}%`);
+    }
+
+    // Pagination
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
     if (error) throw error;
-    return data as Ingredient[];
+    return { data: data as Ingredient[], count };
   },
 
   async getIngredientById(id: string) {
@@ -118,11 +130,21 @@ export const inventoryService = {
     return true;
   },
 
-  async getLogs(filter?: { type?: string, startDate?: Date, endDate?: Date }) {
+  async getLogs(filter?: { type?: string, startDate?: Date, endDate?: Date }, search?: string, page: number = 1, limit: number = 10) {
+    // Start with a query on stock_logs
+    // We select *, and join ingredients.
+    // Use !inner if we are searching by ingredient name, so we only get logs that match the ingredient name.
+    const selectString = search ? '*, ingredients!inner(name, unit)' : '*, ingredients(name, unit)';
+
     let query = supabase
       .from('stock_logs')
-      .select('*, ingredients(name, unit)')
+      .select(selectString, { count: 'exact' })
       .order('created_at', { ascending: false });
+
+    if (search) {
+      // Filter by ingredient name via the joined relationship
+      query = query.ilike('ingredients.name', `%${search}%`);
+    }
 
     if (filter?.type && filter.type !== 'all') {
       query = query.eq('change_type', filter.type);
@@ -139,73 +161,78 @@ export const inventoryService = {
       query = query.lt('created_at', nextDay.toISOString());
     }
 
-    const { data, error } = await query;
+    // Pagination
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
 
     if (error) throw error;
-    return data as StockLog[];
+    return { data: data as StockLog[], count };
   },
 
   async getLowStockIngredients(threshold: number = 5) {
-      const { data, error } = await supabase
-          .from('ingredients')
-          .select('*')
-          .lt('current_stock', threshold)
-          .order('current_stock', { ascending: true });
-      
-      if (error) throw error;
-      return data as Ingredient[];
+    const { data, error } = await supabase
+      .from('ingredients')
+      .select('*')
+      .lt('current_stock', threshold)
+      .order('current_stock', { ascending: true });
+
+    if (error) throw error;
+    return data as Ingredient[];
   },
 
   async getMonthlyIngredientUsage(date: Date) {
-      // Keep legacy support or refactor? Let's just wrap the new one for now if needed, 
-      // but UI will switch to new one.
-      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      return this.getIngredientUsage(startOfMonth, endOfMonth);
+    // Keep legacy support or refactor? Let's just wrap the new one for now if needed, 
+    // but UI will switch to new one.
+    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    return this.getIngredientUsage(startOfMonth, endOfMonth);
   },
 
   async getIngredientUsage(startDate: Date, endDate: Date) {
-      const formatDate = (date: Date) => {
-          const offset = date.getTimezoneOffset() * 60000;
-          const localDate = new Date(date.getTime() - offset);
-          return localDate.toISOString().split('T')[0];
-      };
+    const formatDate = (date: Date) => {
+      const offset = date.getTimezoneOffset() * 60000;
+      const localDate = new Date(date.getTime() - offset);
+      return localDate.toISOString().split('T')[0];
+    };
 
-      const { data, error } = await supabase
-          .rpc('get_ingredient_usage', { 
-              start_date: formatDate(startDate),
-              end_date: formatDate(endDate)
-          });
+    const { data, error } = await supabase
+      .rpc('get_ingredient_usage', {
+        start_date: formatDate(startDate),
+        end_date: formatDate(endDate)
+      });
 
-      if (error) throw error;
-      return data as {
-          ingredient_name: string;
-          unit: string;
-          total_used: number;
-      }[];
+    if (error) throw error;
+    return data as {
+      ingredient_name: string;
+      unit: string;
+      total_used: number;
+    }[];
   },
 
   async getIngredientExpenseReport(startDate: Date, endDate: Date) {
-      const formatDate = (date: Date) => {
-          const offset = date.getTimezoneOffset() * 60000;
-          const localDate = new Date(date.getTime() - offset);
-          return localDate.toISOString().split('T')[0];
-      };
+    const formatDate = (date: Date) => {
+      const offset = date.getTimezoneOffset() * 60000;
+      const localDate = new Date(date.getTime() - offset);
+      return localDate.toISOString().split('T')[0];
+    };
 
-      const { data, error } = await supabase
-          .rpc('get_ingredient_expense_report', { 
-              start_date: formatDate(startDate),
-              end_date: formatDate(endDate)
-          });
+    const { data, error } = await supabase
+      .rpc('get_ingredient_expense_report', {
+        start_date: formatDate(startDate),
+        end_date: formatDate(endDate)
+      });
 
-      if (error) throw error;
-      return data as {
-          ingredient_name: string;
-          unit: string;
-          purchase_count: number;
-          total_qty_purchased: number;
-          total_expenditure: number;
-      }[];
+    if (error) throw error;
+    return data as {
+      ingredient_name: string;
+      unit: string;
+      purchase_count: number;
+      total_qty_purchased: number;
+      total_expenditure: number;
+    }[];
   },
 
   async deleteIngredient(id: string) {
@@ -361,15 +388,19 @@ export const inventoryService = {
     return true;
   },
 
-  async getAllExpenses(startDate?: Date, endDate?: Date): Promise<MergedExpense[]> {
+  async getAllExpenses(startDate?: Date, endDate?: Date, search?: string): Promise<MergedExpense[]> {
     // 1. Get Stock Logs (IN)
+    // Use !inner join if searching to filter by ingredient name
+    const logSelect = search ? '*, ingredients!inner(name)' : '*, ingredients(name)';
+
     let logsQuery = supabase
       .from('stock_logs')
-      .select('*, ingredients(name)')
+      .select(logSelect)
       .eq('change_type', 'in');
 
     if (startDate) logsQuery = logsQuery.gte('created_at', startDate.toISOString());
     if (endDate) logsQuery = logsQuery.lte('created_at', endDate.toISOString());
+    if (search) logsQuery = logsQuery.ilike('ingredients.name', `%${search}%`);
 
     const { data: logs, error: logsError } = await logsQuery;
     if (logsError) throw logsError;
@@ -378,6 +409,7 @@ export const inventoryService = {
     let opsQuery = supabase.from('operational_expenses').select('*');
     if (startDate) opsQuery = opsQuery.gte('created_at', startDate.toISOString());
     if (endDate) opsQuery = opsQuery.lte('created_at', endDate.toISOString());
+    if (search) opsQuery = opsQuery.ilike('name', `%${search}%`);
 
     const { data: ops, error: opsError } = await opsQuery;
 

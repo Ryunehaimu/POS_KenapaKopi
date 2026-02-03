@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Modal, FlatList, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Calendar, User, Clock, CheckCircle, XCircle, Edit } from 'lucide-react-native';
+import { ChevronLeft, Calendar, User, Clock, CheckCircle, XCircle, Edit, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { employeeService, AttendanceLog, Employee } from '../../../../services/employeeService'; // Check relative path
 
@@ -14,13 +14,13 @@ const MONTHS = [
 export default function EmployeeHistoryScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
-    
+
     // State
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [logs, setLogs] = useState<AttendanceLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingLogs, setLoadingLogs] = useState(false);
-    
+
     // Date Selection
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -33,6 +33,11 @@ export default function EmployeeHistoryScreen() {
     const [editStatus, setEditStatus] = useState('');
     const [editNote, setEditNote] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+
+    // Filter & Pagination State
+    const [filterStatus, setFilterStatus] = useState('Semua');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     // Initial Load - Get Employee Info
     useEffect(() => {
@@ -77,7 +82,7 @@ export default function EmployeeHistoryScreen() {
         const present = logs.filter(l => l.status === 'Masuk').length;
         const absent = logs.filter(l => ['Alpha', 'Tidak'].includes(l.status)).length;
         const permission = logs.filter(l => ['Izin', 'Sakit'].includes(l.status)).length;
-        
+
         // Late calculation
         let lateCount = 0;
         let totalLateMinutes = 0;
@@ -90,6 +95,31 @@ export default function EmployeeHistoryScreen() {
 
         return { present, absent, permission, lateCount, totalLateMinutes };
     };
+
+    // Filter Logic
+    const getFilteredLogs = () => {
+        let filtered = logs;
+
+        if (filterStatus !== 'Semua') {
+            filtered = logs.filter(log => {
+                if (filterStatus === 'Masuk') return log.status === 'Masuk';
+                if (filterStatus === 'Telat') return log.status === 'Masuk' && (log.late_minutes || 0) > 0;
+                if (filterStatus === 'Izin') return ['Izin', 'Sakit'].includes(log.status);
+                if (filterStatus === 'Alpha') return ['Alpha', 'Tidak'].includes(log.status);
+                return true;
+            });
+        }
+        return filtered;
+    };
+
+    const filteredLogs = getFilteredLogs();
+    const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+    const paginatedLogs = filteredLogs.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    // Initial Load - Get Employee Info
 
     const summary = getSummary();
 
@@ -120,14 +150,14 @@ export default function EmployeeHistoryScreen() {
                             </TouchableOpacity>
                         )}
                     />
-                     {/* Year Selector could be added here if needed, for now assuming current year or manual simple control if requested, but let's just stick to month for this iteration unless complex year nav is needed */}
-                     <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-200">
+                    {/* Year Selector could be added here if needed, for now assuming current year or manual simple control if requested, but let's just stick to month for this iteration unless complex year nav is needed */}
+                    <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-200">
                         <TouchableOpacity onPress={() => setSelectedYear(selectedYear - 1)} className="p-2">
-                             <ChevronLeft size={20} color="#4b5563"/>
+                            <ChevronLeft size={20} color="#4b5563" />
                         </TouchableOpacity>
                         <Text className="font-bold text-lg">{selectedYear}</Text>
                         <TouchableOpacity onPress={() => setSelectedYear(selectedYear + 1)} className="p-2">
-                             <ChevronLeft size={20} color="#4b5563" style={{ transform: [{ rotate: '180deg' }] }}/>
+                            <ChevronLeft size={20} color="#4b5563" style={{ transform: [{ rotate: '180deg' }] }} />
                         </TouchableOpacity>
                     </View>
                     <TouchableOpacity
@@ -171,7 +201,7 @@ export default function EmployeeHistoryScreen() {
             setIsSaving(true);
             // Prepare status - if 'Lainnya', effectively it is 'Izin' but we use the note to describe detailed reason
             // User requested dropdown options: Sakit, Acara, Lainnya. These map to 'Izin' or 'Sakit'.
-            
+
             // Map UI selection to DB status
             let dbStatus = 'Izin';
             if (editStatus === 'Sakit') dbStatus = 'Sakit';
@@ -265,7 +295,7 @@ export default function EmployeeHistoryScreen() {
     return (
         <View className="flex-1 bg-gray-50">
             {/* Header */}
-             <LinearGradient
+            <LinearGradient
                 colors={['#4c1d95', '#7c3aed']}
                 className="pt-12 pb-6 px-6 rounded-b-[30px] shadow-lg"
             >
@@ -282,7 +312,7 @@ export default function EmployeeHistoryScreen() {
                 </View>
 
                 {/* Date Selector Trigger */}
-                <TouchableOpacity 
+                <TouchableOpacity
                     onPress={() => setShowMonthPicker(true)}
                     className="flex-row bg-white/20 self-start px-4 py-2 rounded-full items-center"
                 >
@@ -295,7 +325,7 @@ export default function EmployeeHistoryScreen() {
 
             {/* Summary Stats */}
             <View className="px-6 -mt-0 pt-6">
-                 <View className="flex-row gap-2 mb-4">
+                <View className="flex-row gap-2 mb-4">
                     <View className="flex-1 bg-white p-3 rounded-xl shadow-sm items-center">
                         <Text className="text-green-600 text-xl font-bold">{summary.present}</Text>
                         <Text className="text-gray-400 text-[10px] mt-1 text-center">Masuk</Text>
@@ -310,83 +340,131 @@ export default function EmployeeHistoryScreen() {
                     </View>
                     <View className="flex-1 bg-white p-3 rounded-xl shadow-sm items-center">
                         <Text className="text-orange-600 text-xl font-bold">{summary.lateCount}</Text>
-                         <Text className="text-gray-400 text-[10px] mt-1 text-center">Telat ({summary.totalLateMinutes}m)</Text>
+                        <Text className="text-gray-400 text-[10px] mt-1 text-center">Telat ({summary.totalLateMinutes}m)</Text>
                     </View>
                 </View>
+
+                {/* Filters */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+                    {['Semua', 'Masuk', 'Telat', 'Izin', 'Alpha'].map((status) => (
+                        <TouchableOpacity
+                            key={status}
+                            onPress={() => {
+                                setFilterStatus(status);
+                                setCurrentPage(1);
+                            }}
+                            className={`mr-2 px-4 py-2 rounded-full border ${filterStatus === status
+                                ? 'bg-indigo-600 border-indigo-600'
+                                : 'bg-white border-gray-200'
+                                }`}
+                        >
+                            <Text className={`font-bold text-xs ${filterStatus === status ? 'text-white' : 'text-gray-600'
+                                }`}>
+                                {status}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
             </View>
 
             {/* Logs List */}
             <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 40 }}>
                 {loadingLogs ? (
                     <ActivityIndicator color="#4f46e5" className="mt-10" />
-                ) : logs.length === 0 ? (
+                ) : filteredLogs.length === 0 ? (
                     <View className="items-center justify-center mt-20">
-                        <Text className="text-gray-400">Tidak ada data absensi bulan ini</Text>
+                        <Text className="text-gray-400">Tidak ada data absensi untuk filter ini</Text>
                     </View>
                 ) : (
-                    logs.map((log) => (
-                        <View key={log.id} className="bg-white mb-3 p-4 rounded-xl shadow-sm border border-gray-100 flex-row items-center">
-                            {/* Date Box */}
-                            <View className="bg-gray-50 rounded-lg p-2 items-center justify-center w-16 mr-3 border border-gray-200">
-                                <Text className="text-gray-500 text-xs font-bold">{new Date(log.date).getDate()}</Text>
-                                <Text className="text-gray-400 text-[10px]">{MONTHS[new Date(log.date).getMonth()].substring(0, 3)}</Text>
-                            </View>
-
-                            <View className="flex-1">
-                                <View className="flex-row items-center mb-1 gap-2">
-                                    <View className={`w-2 h-2 rounded-full ${
-                                        log.status === 'Masuk' ? 'bg-green-500' :
-                                        log.status === 'Izin' || log.status === 'Sakit' ? 'bg-yellow-500' :
-                                        'bg-red-500'
-                                    }`} />
-                                    <Text className="font-bold text-gray-800">{log.status}</Text>
-                                    
-                                    {log.late_minutes && log.late_minutes > 0 ? (
-                                        <View className="bg-orange-100 px-2 py-0.5 rounded ml-2">
-                                            <Text className="text-orange-600 text-[10px] font-bold">Telat {log.late_minutes}m</Text>
-                                        </View>
-                                    ) : null}
+                    <>
+                        {paginatedLogs.map((log) => (
+                            <View key={log.id} className="bg-white mb-3 p-4 rounded-xl shadow-sm border border-gray-100 flex-row items-center">
+                                {/* Date Box */}
+                                <View className="bg-gray-50 rounded-lg p-2 items-center justify-center w-16 mr-3 border border-gray-200">
+                                    <Text className="text-gray-500 text-xs font-bold">{new Date(log.date).getDate()}</Text>
+                                    <Text className="text-gray-400 text-[10px]">{MONTHS[new Date(log.date).getMonth()].substring(0, 3)}</Text>
                                 </View>
-                                <View>
-                                    <Text className="text-gray-400 text-xs">
-                                        {log.status === 'Alpha' 
-                                            ? '23.59' 
-                                            : new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-                                        }
-                                        {log.status !== 'Alpha' && " WIB"}
-                                    </Text>
-                                    {log.notes && (
-                                        <Text className="text-xs text-indigo-500 italic mt-0.5">"{log.notes}"</Text>
-                                    )}
+
+                                <View className="flex-1">
+                                    <View className="flex-row items-center mb-1 gap-2">
+                                        <View className={`w-2 h-2 rounded-full ${log.status === 'Masuk' ? 'bg-green-500' :
+                                            log.status === 'Izin' || log.status === 'Sakit' ? 'bg-yellow-500' :
+                                                'bg-red-500'
+                                            }`} />
+                                        <Text className="font-bold text-gray-800">{log.status}</Text>
+
+                                        {log.late_minutes && log.late_minutes > 0 ? (
+                                            <View className="bg-orange-100 px-2 py-0.5 rounded ml-2">
+                                                <Text className="text-orange-600 text-[10px] font-bold">Telat {log.late_minutes}m</Text>
+                                            </View>
+                                        ) : null}
+                                    </View>
+                                    <View>
+                                        <Text className="text-gray-400 text-xs">
+                                            {log.status === 'Alpha'
+                                                ? '23.59'
+                                                : new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                                            }
+                                            {log.status !== 'Alpha' && " WIB"}
+                                        </Text>
+                                        {log.notes && (
+                                            <Text className="text-xs text-indigo-500 italic mt-0.5">"{log.notes}"</Text>
+                                        )}
+                                    </View>
                                 </View>
+
+                                {/* Edit Button for Alpha */}
+                                {log.status === 'Alpha' && (
+                                    <TouchableOpacity
+                                        onPress={() => openEditModal(log)}
+                                        className="bg-indigo-500 p-2 rounded-lg"
+                                    >
+                                        <Edit size={16} color="white" />
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Photo Thumbnail */}
+                                {log.attendance_photo_url ? (
+                                    <TouchableOpacity
+                                        onPress={() => setSelectedHistoryImage(log.attendance_photo_url || null)}
+                                    >
+                                        <Image
+                                            source={{ uri: log.attendance_photo_url }}
+                                            className="w-10 h-10 rounded-lg bg-gray-200"
+                                            resizeMode="cover"
+                                        />
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View className="w-10 h-10" />
+                                )}
                             </View>
+                        ))}
 
-                            {/* Edit Button for Alpha */}
-                            {log.status === 'Alpha' && (
-                                <TouchableOpacity 
-                                    onPress={() => openEditModal(log)}
-                                    className="bg-indigo-500 p-2 rounded-lg"
+                        {/* Pagination Controls */}
+                        {filteredLogs.length > itemsPerPage && (
+                            <View className="flex-row justify-between items-center mt-4 mb-8 bg-white p-3 rounded-xl border border-gray-100">
+                                <TouchableOpacity
+                                    disabled={currentPage === 1}
+                                    onPress={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                    className={`p-2 rounded-lg border ${currentPage === 1 ? 'border-gray-100 bg-gray-50' : 'border-indigo-100 bg-indigo-50'}`}
                                 >
-                                    <Edit size={16} color="white" />
+                                    <ChevronLeft size={20} color={currentPage === 1 ? "#D1D5DB" : "#4f46e5"} />
                                 </TouchableOpacity>
-                            )}
 
-                            {/* Photo Thumbnail */}
-                            {log.attendance_photo_url ? (
-                                <TouchableOpacity 
-                                    onPress={() => setSelectedHistoryImage(log.attendance_photo_url || null)}
+                                <Text className="text-gray-600 font-medium text-xs">
+                                    Page {currentPage} of {totalPages}
+                                </Text>
+
+                                <TouchableOpacity
+                                    disabled={currentPage >= totalPages}
+                                    onPress={() => setCurrentPage(currentPage + 1)}
+                                    className={`p-2 rounded-lg border ${currentPage >= totalPages ? 'border-gray-100 bg-gray-50' : 'border-indigo-100 bg-indigo-50'}`}
                                 >
-                                    <Image 
-                                        source={{ uri: log.attendance_photo_url }}
-                                        className="w-10 h-10 rounded-lg bg-gray-200"
-                                        resizeMode="cover"
-                                    />
+                                    <ChevronRight size={20} color={currentPage >= totalPages ? "#D1D5DB" : "#4f46e5"} style={currentPage >= totalPages ? {} : {}} />
                                 </TouchableOpacity>
-                            ) : (
-                                <View className="w-10 h-10" /> 
-                            )}
-                        </View>
-                    ))
+                            </View>
+                        )}
+                    </>
                 )}
             </ScrollView>
 
@@ -396,17 +474,17 @@ export default function EmployeeHistoryScreen() {
             {/* Photo Viewer Modal */}
             <Modal visible={!!selectedHistoryImage} transparent={true} animationType="fade">
                 <View className="flex-1 bg-black/90 justify-center items-center p-4">
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={() => setSelectedHistoryImage(null)}
                         className="absolute top-12 right-6 z-10 p-2 bg-white/20 rounded-full"
                     >
                         <XCircle color="white" size={24} />
                     </TouchableOpacity>
-                    
+
                     {selectedHistoryImage && (
-                        <Image 
-                            source={{ uri: selectedHistoryImage }} 
-                            className="w-full h-[80%]" 
+                        <Image
+                            source={{ uri: selectedHistoryImage }}
+                            className="w-full h-[80%]"
                             resizeMode="contain"
                         />
                     )}

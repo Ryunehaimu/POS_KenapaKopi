@@ -21,19 +21,19 @@ export default function AbsensiScreen() {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [emps, statData, todaysLogs] = await Promise.all([
-                employeeService.getEmployees(),
+            const [empData, statData, todaysLogs] = await Promise.all([
+                employeeService.getEmployees(undefined, 1, 100), // Get all for absensi (limit 100 for now)
                 employeeService.getAttendanceStats(),
                 employeeService.getTodayAttendance()
             ]);
 
-            setEmployees(emps);
+            setEmployees(empData.data);
             setStats(statData);
 
             // Map existing logs to local state
             const map: { [key: string]: AttendanceLog | null } = {};
-            
-            emps.forEach(emp => {
+
+            empData.data.forEach(emp => {
                 const log = todaysLogs.find(l => l.employee_id === emp.id);
                 map[emp.id] = log || null;
             });
@@ -64,7 +64,7 @@ export default function AbsensiScreen() {
         // So we keep it simple or disable it if we want Strict Photo Compliance.
         // For now, let's keep it but it won't have a photo.
         const newStatus = currentStatus === 'Masuk' ? 'Tidak' : 'Masuk';
-        
+
         // Note: This optimistic update is tricky with the new object structure.
         // Let's just reload data for simplicity after update.
 
@@ -72,8 +72,8 @@ export default function AbsensiScreen() {
             await employeeService.markAttendance(id, newStatus, today);
             fetchData(); // Reload to get consistent state
         } catch (error) {
-           console.error(error);
-           Alert.alert("Error", "Gagal menyimpan absensi");
+            console.error(error);
+            Alert.alert("Error", "Gagal menyimpan absensi");
         }
     };
 
@@ -148,13 +148,13 @@ export default function AbsensiScreen() {
                                             </Text>
                                         )}
                                     </View>
-                                    
+
                                     <View className="flex-row items-center gap-2">
                                         {/* Display Attendance Photo if available */}
                                         {photoUrl && (
                                             <TouchableOpacity onPress={() => setSelectedImage(photoUrl)}>
-                                                <Image 
-                                                    source={{ uri: photoUrl }} 
+                                                <Image
+                                                    source={{ uri: photoUrl }}
                                                     className="w-10 h-10 rounded-full border border-gray-200"
                                                     style={{ backgroundColor: '#f0f0f0' }}
                                                 />
@@ -180,17 +180,17 @@ export default function AbsensiScreen() {
 
             <Modal visible={!!selectedImage} transparent={true} animationType="fade">
                 <View className="flex-1 bg-black/90 justify-center items-center p-4">
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={() => setSelectedImage(null)}
                         className="absolute top-12 right-6 z-10 p-2 bg-white/20 rounded-full"
                     >
                         <X color="white" size={24} />
                     </TouchableOpacity>
-                    
+
                     {selectedImage && (
-                        <Image 
-                            source={{ uri: selectedImage }} 
-                            className="w-full h-[80%]" 
+                        <Image
+                            source={{ uri: selectedImage }}
+                            className="w-full h-[80%]"
                             resizeMode="contain"
                         />
                     )}

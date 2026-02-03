@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Modal, FlatList } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Modal, FlatList, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Plus, Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Plus, Calendar, ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react-native';
 import OwnerBottomNav from '../../../components/OwnerBottomNav';
 import { inventoryService, MergedExpense } from '../../../services/inventoryService';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,6 +21,14 @@ export default function ExpensesScreen() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showMonthPicker, setShowMonthPicker] = useState(false);
 
+    // Search & Pagination State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 5;
+
+    // Type Filter State
+    const [filterType, setFilterType] = useState<'all' | 'ingredient' | 'operational'>('all');
+
     // Summary State
     const [totalSelectedMonth, setTotalSelectedMonth] = useState(0);
     const [totalPrevMonth, setTotalPrevMonth] = useState(0);
@@ -39,10 +47,10 @@ export default function ExpensesScreen() {
             const startPrev = new Date(year, month - 1, 1);
             const endPrev = new Date(year, month, 0, 23, 59, 59);
 
-            // 3. Fetch Data Pair
+            // 3. Fetch Data Pair (Pass search query to selected data)
             const [selectedData, prevData] = await Promise.all([
-                inventoryService.getAllExpenses(startSelected, endSelected),
-                inventoryService.getAllExpenses(startPrev, endPrev)
+                inventoryService.getAllExpenses(startSelected, endSelected, searchQuery),
+                inventoryService.getAllExpenses(startPrev, endPrev) // Prev month comparison doesn't need search filter usually, but if we want strictly comparable, maybe? Let's keep it raw for "Total Expenditure" comparison context.
             ]);
 
             setExpenses(selectedData);
@@ -68,6 +76,11 @@ export default function ExpensesScreen() {
         }, [selectedDate]) // Reload when date changes
     );
 
+    // Reload when search changes (debounce could be added but direct is fine for now)
+    useEffect(() => {
+        loadData();
+    }, [searchQuery]);
+
     const formatCurrency = (amount: number) => {
         return "Rp " + amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
@@ -88,12 +101,31 @@ export default function ExpensesScreen() {
     const diffColor = diff > 0 ? "text-red-500" : (diff < 0 ? "text-green-500" : "text-gray-500");
     const diffPrefix = diff > 0 ? "+" : "";
 
+    // Toggle Filter
+    const handleFilterChange = (type: 'all' | 'ingredient' | 'operational') => {
+        setFilterType(type);
+        setCurrentPage(1);
+    };
+
+    // Client-side Pagination Logic
+    // First, filter by type
+    const filteredExpenses = expenses.filter(item => {
+        if (filterType === 'all') return true;
+        return item.type === filterType;
+    });
+
+    const totalPages = Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE);
+    const paginatedExpenses = filteredExpenses.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
     return (
         <View className="flex-1 bg-gray-50">
             {/* List Section */}
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ paddingBottom: 100 }}
+                contentContainerStyle={{ paddingBottom: 150 }}
                 refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} />}
                 showsVerticalScrollIndicator={false}
             >
@@ -162,6 +194,42 @@ export default function ExpensesScreen() {
                         </View>
                     </View>
 
+                    {/* Filter Tabs */}
+                    <View className="flex-row gap-2 mb-4">
+                        <TouchableOpacity
+                            onPress={() => handleFilterChange('all')}
+                            className={`px-4 py-2 rounded-full border ${filterType === 'all' ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-200'}`}
+                        >
+                            <Text className={`text-xs font-bold ${filterType === 'all' ? 'text-white' : 'text-gray-500'}`}>Semua</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => handleFilterChange('ingredient')}
+                            className={`px-4 py-2 rounded-full border ${filterType === 'ingredient' ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-200'}`}
+                        >
+                            <Text className={`text-xs font-bold ${filterType === 'ingredient' ? 'text-white' : 'text-gray-500'}`}>Bahan Baku</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => handleFilterChange('operational')}
+                            className={`px-4 py-2 rounded-full border ${filterType === 'operational' ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-200'}`}
+                        >
+                            <Text className={`text-xs font-bold ${filterType === 'operational' ? 'text-white' : 'text-gray-500'}`}>Operasional</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Search Bar */}
+                    <View className="bg-white rounded-xl px-4 py-3 flex-row items-center border border-gray-100 mb-4 shadow-sm">
+                        <Search size={18} color="#9CA3AF" />
+                        <TextInput
+                            placeholder="Cari Pengeluaran..."
+                            className="flex-1 ml-2 text-gray-800"
+                            value={searchQuery}
+                            onChangeText={(text) => {
+                                setSearchQuery(text);
+                                setCurrentPage(1); // Reset to page 1 on search
+                            }}
+                        />
+                    </View>
+
                     {/* Table Header */}
                     <View className="bg-white rounded-t-xl shadow-sm border-b border-gray-100 flex-row p-3">
                         <Text className="flex-[2] font-medium text-gray-500 text-xs">Pengeluaran</Text>
@@ -170,13 +238,13 @@ export default function ExpensesScreen() {
                     </View>
 
                     {/* List Items */}
-                    <View className="bg-white rounded-b-xl shadow-sm overflow-hidden mb-24">
-                        {expenses.length === 0 ? (
+                    <View className="bg-white rounded-b-xl shadow-sm overflow-hidden mb-6">
+                        {filteredExpenses.length === 0 ? (
                             <View className="p-8 items-center">
                                 <Text className="text-gray-400 italic text-sm">Belum ada pengeluaran</Text>
                             </View>
                         ) : (
-                            expenses.map((item) => (
+                            paginatedExpenses.map((item) => (
                                 <View key={item.id} className="flex-row p-4 border-b border-gray-50 items-center">
                                     <View className="flex-[2]">
                                         <Text className="font-bold text-gray-800 text-sm">{item.name}</Text>
@@ -189,6 +257,32 @@ export default function ExpensesScreen() {
                             ))
                         )}
                     </View>
+
+                    {/* Pagination Controls */}
+                    {filteredExpenses.length > 0 && (
+                        <View className="flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-10">
+                            <TouchableOpacity
+                                disabled={currentPage === 1}
+                                onPress={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                className={`p-2 rounded-lg border ${currentPage === 1 ? 'border-gray-100 bg-gray-50' : 'border-indigo-100 bg-indigo-50'}`}
+                            >
+                                <ChevronLeft size={20} color={currentPage === 1 ? "#D1D5DB" : "#4f46e5"} />
+                            </TouchableOpacity>
+
+                            <Text className="text-gray-600 font-medium">
+                                Halaman {currentPage} dari {totalPages || 1}
+                            </Text>
+
+                            <TouchableOpacity
+                                disabled={currentPage >= totalPages}
+                                onPress={() => setCurrentPage(currentPage + 1)}
+                                className={`p-2 rounded-lg border ${currentPage >= totalPages ? 'border-gray-100 bg-gray-50' : 'border-indigo-100 bg-indigo-50'}`}
+                            >
+                                <ChevronRight size={20} color={currentPage >= totalPages ? "#D1D5DB" : "#4f46e5"} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
                 </View>
             </ScrollView>
 

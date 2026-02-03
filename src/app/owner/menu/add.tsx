@@ -20,7 +20,7 @@ export default function AddMenuScreen() {
     const [imageUri, setImageUri] = useState('');
 
     useEffect(() => {
-        categoryService.getCategories().then(setCategories).catch(console.error);
+        categoryService.getCategories('', 1, 1000).then(res => setCategories(res.data)).catch(console.error);
     }, []);
 
     const handleImagePick = async () => {

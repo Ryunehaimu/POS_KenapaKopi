@@ -27,8 +27,8 @@ export default function AddExpenseScreen() {
 
     const loadIngredients = async () => {
         try {
-            const data = await inventoryService.getIngredients();
-            setIngredients(data);
+            const data = await inventoryService.getIngredients('', 1, 1000);
+            setIngredients(data.data);
         } catch (e) {
             console.error(e);
         }

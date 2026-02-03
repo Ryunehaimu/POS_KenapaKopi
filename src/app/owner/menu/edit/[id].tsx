@@ -28,10 +28,10 @@ export default function EditMenuScreen() {
                 setInitialLoading(true);
                 const [params, cats] = await Promise.all([
                     productService.getProductById(id as string),
-                    categoryService.getCategories()
+                    categoryService.getCategories('', 1, 1000)
                 ]);
 
-                setCategories(cats);
+                setCategories(cats.data);
 
                 // Populate form
                 setName(params.name);

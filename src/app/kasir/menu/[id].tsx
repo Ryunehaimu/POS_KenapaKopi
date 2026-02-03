@@ -21,7 +21,7 @@ export default function EditMenuScreen() {
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    
+
     // Form Data
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
@@ -45,13 +45,13 @@ export default function EditMenuScreen() {
             try {
                 setLoading(true);
                 const [cats, ings, product] = await Promise.all([
-                    categoryService.getCategories(),
-                    inventoryService.getIngredients(),
+                    categoryService.getCategories('', 1, 1000),
+                    inventoryService.getIngredients('', 1, 1000),
                     productService.getProductById(productId)
                 ]);
-                
-                setCategories(cats);
-                setIngredients(ings);
+
+                setCategories(cats.data);
+                setIngredients(ings.data);
 
                 // Populate form
                 setName(product.name);
@@ -125,7 +125,7 @@ export default function EditMenuScreen() {
         setRecipeItems(prev => prev.filter((_, i) => i !== index));
     };
 
-     const validateForm = () => {
+    const validateForm = () => {
         if (!name) return "Nama Menu tidak boleh kosong";
         if (!price) return "Harga Barang tidak boleh kosong";
         if (!categoryId) return "Kategori tidak boleh kosong";
@@ -160,7 +160,7 @@ export default function EditMenuScreen() {
             }
 
             const priceNumber = parseInt(price.replace(/[^0-9]/g, ''));
-            
+
             const recipePayload = recipeItems.map(item => ({
                 ingredient_id: item.ingredient_id,
                 quantity: parseFloat(item.quantity)
@@ -190,8 +190,8 @@ export default function EditMenuScreen() {
             `Apakah Anda yakin ingin menghapus "${name}"?`,
             [
                 { text: "Batal", style: "cancel" },
-                { 
-                    text: "Hapus", 
+                {
+                    text: "Hapus",
                     style: "destructive",
                     onPress: async () => {
                         try {
@@ -219,7 +219,7 @@ export default function EditMenuScreen() {
 
     return (
         <View className="flex-1 bg-gray-50">
-             {/* Header */}
+            {/* Header */}
             <View className="bg-white pt-12 pb-4 px-6 shadow-sm z-10 flex-row items-center justify-between">
                 <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
                     <ChevronLeft size={24} color="#1f2937" />
@@ -230,158 +230,158 @@ export default function EditMenuScreen() {
                 </TouchableOpacity>
             </View>
 
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 className="flex-1"
             >
-                <ScrollView 
+                <ScrollView
                     contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
                     className="flex-1"
                 >
-                <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    
-                    {/* Image Upload */}
-                    <View className="mb-6 items-center">
-                        <TouchableOpacity onPress={pickImage} className="w-full h-48 bg-gray-100 rounded-2xl border-2 border-dashed border-gray-300 items-center justify-center overflow-hidden">
-                            {imageUri ? (
-                                <Image source={{ uri: imageUri }} className="w-full h-full" resizeMode="cover" />
-                            ) : (
-                                <View className="items-center">
-                                    <Upload size={32} color="#9CA3AF" />
-                                    <Text className="text-gray-400 mt-2 font-medium">Upload Foto Menu</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                        {imageUri && (
-                            <TouchableOpacity onPress={() => setImageUri('')} className="absolute top-2 right-2 bg-red-500 p-1 rounded-full">
-                                <X size={16} color="white" />
+                    <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+
+                        {/* Image Upload */}
+                        <View className="mb-6 items-center">
+                            <TouchableOpacity onPress={pickImage} className="w-full h-48 bg-gray-100 rounded-2xl border-2 border-dashed border-gray-300 items-center justify-center overflow-hidden">
+                                {imageUri ? (
+                                    <Image source={{ uri: imageUri }} className="w-full h-full" resizeMode="cover" />
+                                ) : (
+                                    <View className="items-center">
+                                        <Upload size={32} color="#9CA3AF" />
+                                        <Text className="text-gray-400 mt-2 font-medium">Upload Foto Menu</Text>
+                                    </View>
+                                )}
                             </TouchableOpacity>
-                        )}
-                    </View>
+                            {imageUri && (
+                                <TouchableOpacity onPress={() => setImageUri('')} className="absolute top-2 right-2 bg-red-500 p-1 rounded-full">
+                                    <X size={16} color="white" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
 
-                    {/* Nama Menu */}
-                    <View className="mb-6">
-                        <Text className="text-sm font-medium text-gray-700 mb-2">Nama Menu <Text className="text-red-500">*</Text></Text>
-                        <TextInput
-                            value={name}
-                            onChangeText={setName}
-                            placeholder="Product1"
-                            className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800"
-                        />
-                    </View>
-
-                    {/* Harga & Kategori Row */}
-                    <View className="flex-row gap-4 mb-6">
-                        <View className="flex-1">
-                            <Text className="text-sm font-medium text-gray-700 mb-2">Harga Barang <Text className="text-red-500">*</Text></Text>
+                        {/* Nama Menu */}
+                        <View className="mb-6">
+                            <Text className="text-sm font-medium text-gray-700 mb-2">Nama Menu <Text className="text-red-500">*</Text></Text>
                             <TextInput
-                                value={price}
-                                onChangeText={setPrice}
-                                placeholder="Silahkan Isi harga"
-                                keyboardType="numeric"
+                                value={name}
+                                onChangeText={setName}
+                                placeholder="Product1"
                                 className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800"
                             />
                         </View>
-                        <View className="flex-1">
-                            <Text className="text-sm font-medium text-gray-700 mb-2">Kategori <Text className="text-red-500">*</Text></Text>
-                            <View className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden h-[58px] justify-center">
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-2">
-                                    <View className="flex-row gap-2 items-center">
-                                        {categories.map(cat => (
-                                            <TouchableOpacity 
-                                                key={cat.id} 
-                                                onPress={() => setCategoryId(cat.id)}
-                                                className={`px-3 py-2 rounded-lg ${categoryId === cat.id ? 'bg-indigo-600' : 'bg-white border border-gray-300'}`}
-                                            >
-                                                <Text className={`${categoryId === cat.id ? 'text-white' : 'text-gray-700'} text-xs font-bold whitespace-nowrap`}>
-                                                    {cat.name}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                </ScrollView>
-                            </View>
-                        </View>
-                    </View>
 
-                    {/* Deskripsi */}
-                    <View className="mb-6">
-                        <Text className="text-sm font-medium text-gray-700 mb-2">Deskripsi</Text>
-                        <TextInput
-                            value={description}
-                            onChangeText={setDescription}
-                            placeholder="Deskrip................"
-                            multiline
-                            numberOfLines={4}
-                            className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800 h-32"
-                            textAlignVertical="top"
-                        />
-                    </View>
-
-                    {/* ----------- RECIPE SECTION ----------- */}
-                    <View className="mb-8 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                        <Text className="text-indigo-900 font-bold mb-4 text-lg">Resep / Bahan Baku <Text className="text-red-500">*</Text></Text>
-                        
-                        {/* Add Ingredient Form */}
-                        <View className="flex-row gap-4 mb-4 items-end">
+                        {/* Harga & Kategori Row */}
+                        <View className="flex-row gap-4 mb-6">
                             <View className="flex-1">
-                                <Text className="text-xs font-medium text-indigo-700 mb-1">Bahan</Text>
-                                <TouchableOpacity 
-                                    onPress={() => setIngredientModalVisible(true)}
-                                    className="h-12 bg-white rounded-xl border border-indigo-200 justify-center px-4 flex-row items-center justify-between"
-                                >
-                                    <Text className={selectedIngredient ? "text-gray-800" : "text-gray-400"}>
-                                        {selectedIngredient ? selectedIngredient.name : "Pilih Bahan"}
-                                    </Text>
-                                    <ChevronDown size={16} color="#6366f1" />
-                                </TouchableOpacity>
-                            </View>
-
-                            <View className="w-1/3">
-                                <Text className="text-xs font-medium text-indigo-700 mb-1">Jumlah</Text>
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga Barang <Text className="text-red-500">*</Text></Text>
                                 <TextInput
-                                    value={currentQuantity}
-                                    onChangeText={setCurrentQuantity}
-                                    placeholder="0"
+                                    value={price}
+                                    onChangeText={setPrice}
+                                    placeholder="Silahkan Isi harga"
                                     keyboardType="numeric"
-                                    className="bg-white border border-indigo-200 rounded-xl h-12 px-4 text-gray-800"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800"
                                 />
                             </View>
-
-                            <TouchableOpacity 
-                                onPress={handleAddIngredient}
-                                className="bg-indigo-600 w-12 h-12 rounded-xl items-center justify-center mb-0"
-                            >
-                                <Plus size={24} color="white" />
-                            </TouchableOpacity>
+                            <View className="flex-1">
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Kategori <Text className="text-red-500">*</Text></Text>
+                                <View className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden h-[58px] justify-center">
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-2">
+                                        <View className="flex-row gap-2 items-center">
+                                            {categories.map(cat => (
+                                                <TouchableOpacity
+                                                    key={cat.id}
+                                                    onPress={() => setCategoryId(cat.id)}
+                                                    className={`px-3 py-2 rounded-lg ${categoryId === cat.id ? 'bg-indigo-600' : 'bg-white border border-gray-300'}`}
+                                                >
+                                                    <Text className={`${categoryId === cat.id ? 'text-white' : 'text-gray-700'} text-xs font-bold whitespace-nowrap`}>
+                                                        {cat.name}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </ScrollView>
+                                </View>
+                            </View>
                         </View>
 
-                        {selectedIngredient && (
-                            <Text className="text-xs text-indigo-500 mb-4 px-1">
-                                Satuan: {selectedIngredient.unit} | Stok: {selectedIngredient.current_stock}
-                            </Text>
-                        )}
+                        {/* Deskripsi */}
+                        <View className="mb-6">
+                            <Text className="text-sm font-medium text-gray-700 mb-2">Deskripsi</Text>
+                            <TextInput
+                                value={description}
+                                onChangeText={setDescription}
+                                placeholder="Deskrip................"
+                                multiline
+                                numberOfLines={4}
+                                className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800 h-32"
+                                textAlignVertical="top"
+                            />
+                        </View>
 
-                        {/* List of Added Ingredients */}
-                        {recipeItems.map((item, index) => (
-                             <View key={index} className="flex-row justify-between items-center bg-white p-3 rounded-lg mb-2 border border-gray-200">
-                                <View>
-                                    <Text className="font-bold text-gray-800">{item.ingredientName}</Text>
-                                    <Text className="text-gray-500 text-xs">{item.quantity} {item.unit}</Text>
+                        {/* ----------- RECIPE SECTION ----------- */}
+                        <View className="mb-8 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                            <Text className="text-indigo-900 font-bold mb-4 text-lg">Resep / Bahan Baku <Text className="text-red-500">*</Text></Text>
+
+                            {/* Add Ingredient Form */}
+                            <View className="flex-row gap-4 mb-4 items-end">
+                                <View className="flex-1">
+                                    <Text className="text-xs font-medium text-indigo-700 mb-1">Bahan</Text>
+                                    <TouchableOpacity
+                                        onPress={() => setIngredientModalVisible(true)}
+                                        className="h-12 bg-white rounded-xl border border-indigo-200 justify-center px-4 flex-row items-center justify-between"
+                                    >
+                                        <Text className={selectedIngredient ? "text-gray-800" : "text-gray-400"}>
+                                            {selectedIngredient ? selectedIngredient.name : "Pilih Bahan"}
+                                        </Text>
+                                        <ChevronDown size={16} color="#6366f1" />
+                                    </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity onPress={() => handleRemoveIngredient(index)}>
-                                    <Trash2 size={18} color="#ef4444" />
+
+                                <View className="w-1/3">
+                                    <Text className="text-xs font-medium text-indigo-700 mb-1">Jumlah</Text>
+                                    <TextInput
+                                        value={currentQuantity}
+                                        onChangeText={setCurrentQuantity}
+                                        placeholder="0"
+                                        keyboardType="numeric"
+                                        className="bg-white border border-indigo-200 rounded-xl h-12 px-4 text-gray-800"
+                                    />
+                                </View>
+
+                                <TouchableOpacity
+                                    onPress={handleAddIngredient}
+                                    className="bg-indigo-600 w-12 h-12 rounded-xl items-center justify-center mb-0"
+                                >
+                                    <Plus size={24} color="white" />
                                 </TouchableOpacity>
-                             </View>
-                        ))}
+                            </View>
+
+                            {selectedIngredient && (
+                                <Text className="text-xs text-indigo-500 mb-4 px-1">
+                                    Satuan: {selectedIngredient.unit} | Stok: {selectedIngredient.current_stock}
+                                </Text>
+                            )}
+
+                            {/* List of Added Ingredients */}
+                            {recipeItems.map((item, index) => (
+                                <View key={index} className="flex-row justify-between items-center bg-white p-3 rounded-lg mb-2 border border-gray-200">
+                                    <View>
+                                        <Text className="font-bold text-gray-800">{item.ingredientName}</Text>
+                                        <Text className="text-gray-500 text-xs">{item.quantity} {item.unit}</Text>
+                                    </View>
+                                    <TouchableOpacity onPress={() => handleRemoveIngredient(index)}>
+                                        <Trash2 size={18} color="#ef4444" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+
                     </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
 
-                </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-             {/* Fixed Bottom Action Bar */}
-             <View className="p-6 bg-white border-t border-gray-100 shadow-lg">
+            {/* Fixed Bottom Action Bar */}
+            <View className="p-6 bg-white border-t border-gray-100 shadow-lg">
                 <TouchableOpacity
                     onPress={handleSubmit}
                     disabled={submitting}
@@ -398,10 +398,10 @@ export default function EditMenuScreen() {
                         </>
                     )}
                 </TouchableOpacity>
-             </View>
+            </View>
 
-             {/* Ingredient Selection Modal */}
-             <Modal
+            {/* Ingredient Selection Modal */}
+            <Modal
                 visible={isIngredientModalVisible}
                 animationType="slide"
                 transparent={true}
@@ -415,12 +415,12 @@ export default function EditMenuScreen() {
                                 <X size={24} color="#374151" />
                             </TouchableOpacity>
                         </View>
-                        
+
                         <FlatList
                             data={ingredients}
                             keyExtractor={item => item.id}
                             renderItem={({ item }) => (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={() => {
                                         setSelectedIngredient(item);
                                         setIngredientModalVisible(false);

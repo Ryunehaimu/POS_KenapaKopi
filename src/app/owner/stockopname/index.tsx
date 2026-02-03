@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Modal, FlatList, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Modal, FlatList, Alert, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Plus, ChevronLeft, MoreVertical, Edit, X, Check } from 'lucide-react-native';
+import { Plus, ChevronLeft, MoreVertical, Edit, X, Check, Search, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { inventoryService, Ingredient, StockLog } from '../../../services/inventoryService';
@@ -14,6 +14,16 @@ export default function StockOpnameScreen() {
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [logs, setLogs] = useState<StockLog[]>([]);
     const [loading, setLoading] = useState(true);
+    const [pinnedIngredientsData, setPinnedIngredientsData] = useState<Ingredient[]>([]);
+
+    // Pagination & Search States
+    const [ingPage, setIngPage] = useState(1);
+    const [ingSearch, setIngSearch] = useState('');
+    const [ingTotal, setIngTotal] = useState(0);
+
+    const [logsPage, setLogsPage] = useState(1);
+    const [logsSearch, setLogsSearch] = useState('');
+    const [logsTotal, setLogsTotal] = useState(0);
 
     // Dynamic array of pinned IDs
     const [pinnedIds, setPinnedIds] = useState<string[]>([]);
@@ -22,18 +32,83 @@ export default function StockOpnameScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
 
+
+    // Load Logs with Pagination
+    const fetchLogs = async () => {
+        try {
+            const res = await inventoryService.getLogs(undefined, logsSearch, logsPage, 5);
+            setLogs(res.data);
+            setLogsTotal(res.count || 0);
+        } catch (error) {
+            console.error("Fetch logs error:", error);
+        }
+    };
+
+    // Load Ingredients with Pagination
+    const fetchIngredients = async () => {
+        try {
+            const res = await inventoryService.getIngredients(ingSearch, ingPage, 5);
+            setIngredients(res.data);
+            setIngTotal(res.count || 0);
+        } catch (error) {
+            console.error("Fetch ingredients error:", error);
+        }
+    };
+
+    // Load Pinned Data Specifically (independent of pagination)
+    const fetchPinnedData = async () => {
+        if (pinnedIds.length === 0) return;
+        try {
+            // Fetch all pinned items details. Ideally, we should have a bulk fetch by IDs.
+            // For now, we will fetch individual or use a workaround if needed.
+            // Assuming we can just fetch all ingredients if list is small, or iterate.
+            // Be efficient: Promise.all
+            const promises = pinnedIds.map(id => inventoryService.getIngredientById(id));
+            const results = await Promise.all(promises);
+            setPinnedIngredientsData(results.filter(i => !!i)); // Filter out nulls
+        } catch (error) {
+            console.error("Fetch pinned data error:", error);
+        }
+    };
+
     const loadData = async () => {
         try {
             setLoading(true);
-            const [ingData, logData] = await Promise.all([
-                inventoryService.getIngredients(),
-                inventoryService.getLogs()
-            ]);
-            setIngredients(ingData);
-            setLogs(logData);
 
-            // Load pinned IDs
-            await loadPinnedIds(ingData);
+            // 1. Initial Load of everything
+            await Promise.all([
+                fetchIngredients(),
+                fetchLogs()
+            ]);
+
+            // 2. Load pinned IDs from storage
+            const stored = await AsyncStorage.getItem(PINNED_STORAGE_KEY);
+            let currentPinnedIds: string[] = [];
+
+            if (stored) {
+                currentPinnedIds = JSON.parse(stored);
+                setPinnedIds(currentPinnedIds);
+            } else {
+                // If no pinned, we need to pick defaults. 
+                // But wait, ingredients might be empty if we rely on state. 
+                // We should get defaults from the first fetch if needed?
+                // Let's just try to fetch a small batch to determine defaults if needed.
+                const firstBatch = await inventoryService.getIngredients('', 1, 4);
+                if (firstBatch.data.length > 0) {
+                    const defaults = firstBatch.data.map(i => i.id);
+                    currentPinnedIds = defaults;
+                    setPinnedIds(defaults);
+                    await AsyncStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(defaults));
+                }
+            }
+
+            // 3. Fetch details for pinned IDs
+            if (currentPinnedIds.length > 0) {
+                const promises = currentPinnedIds.map(id => inventoryService.getIngredientById(id));
+                const results = await Promise.all(promises);
+                setPinnedIngredientsData(results.filter(i => !!i));
+            }
+
         } catch (error) {
             console.error(error);
         } finally {
@@ -41,20 +116,22 @@ export default function StockOpnameScreen() {
         }
     };
 
+    // Effects for Search/Pagination changes (Skip initial load as loadData handles it)
+    useEffect(() => {
+        fetchIngredients();
+    }, [ingPage, ingSearch]);
+
+    useEffect(() => {
+        fetchLogs();
+    }, [logsPage, logsSearch]);
+
+    useEffect(() => {
+        fetchPinnedData();
+    }, [pinnedIds]);
+
     const loadPinnedIds = async (allIngredients: Ingredient[]) => {
-        try {
-            const stored = await AsyncStorage.getItem(PINNED_STORAGE_KEY);
-            if (stored) {
-                setPinnedIds(JSON.parse(stored));
-            } else {
-                // Default to first 4
-                const defaults = allIngredients.slice(0, 4).map(i => i.id);
-                setPinnedIds(defaults);
-                await AsyncStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(defaults));
-            }
-        } catch (e) {
-            console.error("Failed to load pinned ids", e);
-        }
+        // Deprecated but keeping signature if needed or removing usage
+        // Replaced logic in loadData
     };
 
     const openSelectionModal = () => {
@@ -91,7 +168,7 @@ export default function StockOpnameScreen() {
     );
 
     const getPinnedIngredient = (id: string) => {
-        return ingredients.find(i => i.id === id);
+        return pinnedIngredientsData.find(i => i.id === id);
     };
 
     const renderIngredientRow = ({ item }: { item: Ingredient }) => (
@@ -194,6 +271,20 @@ export default function StockOpnameScreen() {
                             </TouchableOpacity>
                         </View>
 
+                        {/* Search Ingredient */}
+                        <View className="bg-gray-50 rounded-xl px-4 py-2 flex-row items-center border border-gray-100 mb-4">
+                            <Search size={18} color="#9CA3AF" />
+                            <TextInput
+                                placeholder="Cari bahan..."
+                                className="flex-1 ml-2 text-gray-800"
+                                value={ingSearch}
+                                onChangeText={(t) => {
+                                    setIngSearch(t);
+                                    setIngPage(1); // Reset page on search
+                                }}
+                            />
+                        </View>
+
                         {loading ? <ActivityIndicator color="#4f46e5" /> : (
                             <View>
                                 <View className="flex-row justify-between mb-2">
@@ -203,6 +294,32 @@ export default function StockOpnameScreen() {
                                 {ingredients.map(item => (
                                     <View key={item.id}>{renderIngredientRow({ item })}</View>
                                 ))}
+                                {ingredients.length === 0 && (
+                                    <Text className="text-center text-gray-400 py-4">Tidak ada bahan ditemukan.</Text>
+                                )}
+
+                                {/* Ingredient Pagination */}
+                                <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-100">
+                                    <Text className="text-xs text-gray-400">
+                                        {(ingPage - 1) * 5 + 1}-{Math.min(ingPage * 5, ingTotal)} dari {ingTotal}
+                                    </Text>
+                                    <View className="flex-row gap-2">
+                                        <TouchableOpacity
+                                            disabled={ingPage === 1}
+                                            onPress={() => setIngPage(Math.max(1, ingPage - 1))}
+                                            className={`p-2 rounded-lg border ${ingPage === 1 ? 'border-gray-100 bg-gray-50' : 'border-gray-200 bg-white'}`}
+                                        >
+                                            <ChevronLeft size={16} color={ingPage === 1 ? "#D1D5DB" : "#374151"} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            disabled={ingPage * 5 >= ingTotal}
+                                            onPress={() => setIngPage(ingPage + 1)}
+                                            className={`p-2 rounded-lg border ${ingPage * 5 >= ingTotal ? 'border-gray-100 bg-gray-50' : 'border-gray-200 bg-white'}`}
+                                        >
+                                            <ChevronRight size={16} color={ingPage * 5 >= ingTotal ? "#D1D5DB" : "#374151"} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                             </View>
                         )}
                     </View>
@@ -210,12 +327,50 @@ export default function StockOpnameScreen() {
                     {/* 4. Logs */}
                     <View className="bg-white rounded-2xl p-6 shadow-sm">
                         <Text className="text-lg font-bold text-gray-900 mb-4">Log Riwayat Stok</Text>
+
+                        {/* Search Logs */}
+                        <View className="bg-gray-50 rounded-xl px-4 py-2 flex-row items-center border border-gray-100 mb-4">
+                            <Search size={18} color="#9CA3AF" />
+                            <TextInput
+                                placeholder="Cari di riwayat..."
+                                className="flex-1 ml-2 text-gray-800"
+                                value={logsSearch}
+                                onChangeText={(t) => {
+                                    setLogsSearch(t);
+                                    setLogsPage(1);
+                                }}
+                            />
+                        </View>
+
                         {loading ? <ActivityIndicator color="#4f46e5" /> : (
                             <View>
                                 {logs.map(item => (
                                     <View key={item.id}>{renderLog({ item })}</View>
                                 ))}
                                 {logs.length === 0 && <Text className="text-gray-400 text-center py-4">Belum ada riwayat</Text>}
+
+                                {/* Logs Pagination */}
+                                <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-100">
+                                    <Text className="text-xs text-gray-400">
+                                        {(logsPage - 1) * 5 + 1}-{Math.min(logsPage * 5, logsTotal)} dari {logsTotal}
+                                    </Text>
+                                    <View className="flex-row gap-2">
+                                        <TouchableOpacity
+                                            disabled={logsPage === 1}
+                                            onPress={() => setLogsPage(Math.max(1, logsPage - 1))}
+                                            className={`p-2 rounded-lg border ${logsPage === 1 ? 'border-gray-100 bg-gray-50' : 'border-gray-200 bg-white'}`}
+                                        >
+                                            <ChevronLeft size={16} color={logsPage === 1 ? "#D1D5DB" : "#374151"} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            disabled={logsPage * 5 >= logsTotal}
+                                            onPress={() => setLogsPage(logsPage + 1)}
+                                            className={`p-2 rounded-lg border ${logsPage * 5 >= logsTotal ? 'border-gray-100 bg-gray-50' : 'border-gray-200 bg-white'}`}
+                                        >
+                                            <ChevronRight size={16} color={logsPage * 5 >= logsTotal ? "#D1D5DB" : "#374151"} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                             </View>
                         )}
                     </View>

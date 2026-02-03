@@ -20,10 +20,10 @@ export default function OwnerMenuScreen() {
             setLoading(true);
             const [productsData, categoriesData] = await Promise.all([
                 productService.getProducts(),
-                categoryService.getCategories()
+                categoryService.getCategories('', 1, 1000)
             ]);
             setProducts(productsData);
-            setCategories(categoriesData);
+            setCategories(categoriesData.data);
         } catch (error) {
             console.error(error);
             Alert.alert("Error", "Gagal memuat data menu");

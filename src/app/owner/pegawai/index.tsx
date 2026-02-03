@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, RefreshControl, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Plus, ChevronLeft, Edit2, Trash2, Users, UserCheck, Calendar } from 'lucide-react-native';
+import { Plus, ChevronLeft, Edit2, Trash2, Users, UserCheck, Calendar, Search, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { employeeService, Employee } from '../../../services/employeeService';
 import OwnerBottomNav from '../../../components/OwnerBottomNav';
@@ -13,14 +13,21 @@ export default function EmployeeListScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Search & Pagination State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const ITEMS_PER_PAGE = 5;
+
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [emps, statData] = await Promise.all([
-                employeeService.getEmployees(),
+            const [empData, statData] = await Promise.all([
+                employeeService.getEmployees(searchQuery, currentPage, ITEMS_PER_PAGE),
                 employeeService.getAttendanceStats()
             ]);
-            setEmployees(emps);
+            setEmployees(empData.data || []);
+            setTotalItems(empData.count || 0);
             setStats(statData);
         } catch (error) {
             console.error(error);
@@ -36,6 +43,11 @@ export default function EmployeeListScreen() {
             fetchData();
         }, [])
     );
+
+    // Fetch on search or page change
+    useEffect(() => {
+        fetchData();
+    }, [searchQuery, currentPage]);
 
     const onRefresh = () => {
         setRefreshing(true);
@@ -63,6 +75,8 @@ export default function EmployeeListScreen() {
             ]
         );
     };
+
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
     return (
         <View className="flex-1 bg-gray-50">
@@ -109,12 +123,12 @@ export default function EmployeeListScreen() {
             </View>
 
             <ScrollView
-                contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 24 }}
+                contentContainerStyle={{ paddingBottom: 150, paddingHorizontal: 24 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 showsVerticalScrollIndicator={false}
             >
                 <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-gray-500 font-medium">Total Karyawan</Text>
+                    <Text className="text-gray-500 font-medium">Total Karyawan: {totalItems}</Text>
                     <TouchableOpacity
                         onPress={() => router.push('/owner/pegawai/add')}
                         className="flex-row items-center bg-indigo-600 px-4 py-2 rounded-xl"
@@ -124,8 +138,22 @@ export default function EmployeeListScreen() {
                     </TouchableOpacity>
                 </View>
 
+                {/* Search Bar */}
+                <View className="bg-white rounded-xl px-4 py-3 flex-row items-center border border-gray-100 mb-4 shadow-sm">
+                    <Search size={18} color="#9CA3AF" />
+                    <TextInput
+                        placeholder="Cari Pegawai..."
+                        className="flex-1 ml-2 text-gray-800"
+                        value={searchQuery}
+                        onChangeText={(text) => {
+                            setSearchQuery(text);
+                            setCurrentPage(1); // Reset to page 1 on search
+                        }}
+                    />
+                </View>
+
                 {/* EMPLOYEE LIST TABLE-STYLE */}
-                <View className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <View className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
                     <View className="flex-row bg-gray-100 p-4 border-b border-gray-200">
                         <Text className="flex-1 text-gray-500 font-bold">Karyawan</Text>
                         <Text className="w-24 text-center text-gray-500 font-bold">Aksi</Text>
@@ -144,7 +172,10 @@ export default function EmployeeListScreen() {
                                             <Users size={20} color="#9ca3af" />
                                         )}
                                     </View>
-                                    <Text className="font-bold text-gray-800 text-base" numberOfLines={1}>{emp.name}</Text>
+                                    <View>
+                                        <Text className="font-bold text-gray-800 text-base" numberOfLines={1}>{emp.name}</Text>
+                                        <Text className="text-xs text-gray-400">ID: {emp.id.slice(0, 8)}...</Text>
+                                    </View>
                                 </View>
 
                                 <View className="flex-row gap-2">
@@ -173,10 +204,35 @@ export default function EmployeeListScreen() {
 
                     {!loading && employees.length === 0 && (
                         <View className="py-8 items-center">
-                            <Text className="text-gray-400">Belum ada data karyawan</Text>
+                            <Text className="text-gray-400">Tidak ada data karyawan</Text>
                         </View>
                     )}
                 </View>
+
+                {/* Pagination Controls */}
+                {employees.length > 0 && (
+                    <View className="flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-10">
+                        <TouchableOpacity
+                            disabled={currentPage === 1}
+                            onPress={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                            className={`p-2 rounded-lg border ${currentPage === 1 ? 'border-gray-100 bg-gray-50' : 'border-indigo-100 bg-indigo-50'}`}
+                        >
+                            <ChevronLeft size={20} color={currentPage === 1 ? "#D1D5DB" : "#4f46e5"} />
+                        </TouchableOpacity>
+
+                        <Text className="text-gray-600 font-medium">
+                            Halaman {currentPage} dari {totalPages || 1}
+                        </Text>
+
+                        <TouchableOpacity
+                            disabled={currentPage >= totalPages}
+                            onPress={() => setCurrentPage(currentPage + 1)}
+                            className={`p-2 rounded-lg border ${currentPage >= totalPages ? 'border-gray-100 bg-gray-50' : 'border-indigo-100 bg-indigo-50'}`}
+                        >
+                            <ChevronRight size={20} color={currentPage >= totalPages ? "#D1D5DB" : "#4f46e5"} />
+                        </TouchableOpacity>
+                    </View>
+                )}
             </ScrollView>
 
             <OwnerBottomNav />

@@ -7,14 +7,25 @@ export interface Category {
 }
 
 export const categoryService = {
-  async getCategories() {
-    const { data, error } = await supabase
+  async getCategories(search?: string, page: number = 1, limit: number = 10) {
+    let query = supabase
       .from("categories")
-      .select("*")
+      .select("*", { count: 'exact' })
       .order("name", { ascending: true });
 
+    if (search) {
+      query = query.ilike('name', `%${search}%`);
+    }
+
+    // Pagination
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
     if (error) throw error;
-    return data as Category[];
+    return { data: data as Category[], count };
   },
 
   async createCategory(name: string) {

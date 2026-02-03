@@ -12,24 +12,24 @@ export default function EditCategoryScreen() {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-      loadData();
+    loadData();
   }, [id]);
 
   const loadData = async () => {
-      try {
-          const cats = await categoryService.getCategories();
-          const cat = cats.find(c => c.id === id);
-          if (cat) {
-              setName(cat.name);
-          } else {
-              Alert.alert("Error", "Kategori tidak ditemukan");
-              router.back();
-          }
-      } catch (e) {
-          console.error(e);
-      } finally {
-          setFetching(false);
+    try {
+      const cats = await categoryService.getCategories('', 1, 1000);
+      const cat = cats.data.find(c => c.id === id);
+      if (cat) {
+        setName(cat.name);
+      } else {
+        Alert.alert("Error", "Kategori tidak ditemukan");
+        router.back();
       }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFetching(false);
+    }
   }
 
   const handleSave = async () => {
@@ -45,17 +45,17 @@ export default function EditCategoryScreen() {
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error) {
-       console.error(error);
-       Alert.alert('Gagal', 'Terjadi kesalahan saat menyimpan kategori');
+      console.error(error);
+      Alert.alert('Gagal', 'Terjadi kesalahan saat menyimpan kategori');
     } finally {
       setLoading(false);
     }
   };
 
   if (fetching) return (
-      <View className="flex-1 bg-gray-50 justify-center items-center">
-          <ActivityIndicator size="large" color="#4f46e5" />
-      </View>
+    <View className="flex-1 bg-gray-50 justify-center items-center">
+      <ActivityIndicator size="large" color="#4f46e5" />
+    </View>
   );
 
   const fields: FormField[] = [

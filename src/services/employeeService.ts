@@ -23,14 +23,33 @@ export interface AttendanceLog {
 export const employeeService = {
     // --- Employee CRUD ---
 
-    async getEmployees() {
-        const { data, error } = await supabase
+    // Helper: Get local date string YYYY-MM-DD
+    getLocalDateString(date: Date = new Date()) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    },
+
+    async getEmployees(search?: string, page: number = 1, limit: number = 10) {
+        let query = supabase
             .from("employees")
-            .select("*")
+            .select("*", { count: 'exact' })
             .order("name", { ascending: true });
 
+        if (search) {
+            query = query.ilike('name', `%${search}%`);
+        }
+
+        // Pagination
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+        query = query.range(from, to);
+
+        const { data, error, count } = await query;
+
         if (error) throw error;
-        return data as Employee[];
+        return { data: (data || []) as Employee[], count };
     },
 
     async getEmployeeById(id: string) {
@@ -85,7 +104,7 @@ export const employeeService = {
     // --- Attendance ---
 
     async getTodayAttendance() {
-        const today = new Date().toISOString().split('T')[0];
+        const today = this.getLocalDateString();
         const { data, error } = await supabase
             .from("attendance_logs")
             .select("*")
@@ -99,12 +118,12 @@ export const employeeService = {
     calculateLateness(logTime: string | Date) {
         const d = new Date(logTime);
         const hour = d.getHours();
-        
+
         // Shift Targets
         // < 12:00 -> Target 09:00
         // >= 12:00 -> Target 15:00
         const targetHour = hour >= 12 ? 15 : 9;
-        
+
         const target = new Date(d);
         target.setHours(targetHour, 0, 0, 0);
 
@@ -119,7 +138,7 @@ export const employeeService = {
                 // Rounding Rule: Minimum 30 mins, Steps of 30 mins
                 // Ceil(diff / 30) * 30
                 lateMinutes = Math.ceil(diffMins / 30) * 30;
-                
+
                 // Effective Time = Target + LateMinutes
                 effectiveTime = new Date(target.getTime() + lateMinutes * 60000);
             }
@@ -132,6 +151,7 @@ export const employeeService = {
         // Calculate Lateness
         const now = new Date();
         const { lateMinutes } = this.calculateLateness(now);
+        const today = this.getLocalDateString(now);
 
         // 1. Upload Photo
         const timestamp = new Date().getTime();
@@ -143,9 +163,9 @@ export const employeeService = {
             .from('attendance_logs')
             .insert({
                 employee_id: employeeId,
-                status, 
+                status,
                 attendance_photo_url: photoUrl,
-                date: new Date().toISOString().split('T')[0],
+                date: today,
                 late_minutes: lateMinutes
             })
             .select()
@@ -161,7 +181,7 @@ export const employeeService = {
         const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
         const nextMonth = month === 12 ? 1 : month + 1;
         const nextYear = month === 12 ? year + 1 : year;
-        const endDateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`; 
+        const endDateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
 
         const { data: logs, error } = await supabase
             .from("attendance_logs")
@@ -183,52 +203,52 @@ export const employeeService = {
         const results: AttendanceLog[] = [];
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(nextYear, nextMonth - 1, 0); // Last day of month
-        
+
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
+        const todayStr = this.getLocalDateString(now);
         const currentHour = now.getHours();
         const CLOSING_HOUR = 22; // 10 PM
 
         // Iterate from last day to first day (descending order)
         for (let d = endDate; d >= startDate; d.setDate(d.getDate() - 1)) {
-             // Create a new date object to avoid reference issues
-             const dateObj = new Date(d);
-             // Use local time components to avoid UTC shift
-             const yearStr = dateObj.getFullYear();
-             const monthStr = String(dateObj.getMonth() + 1).padStart(2, '0');
-             const dayStr = String(dateObj.getDate()).padStart(2, '0');
-             const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
-             
-             // If we have a log, use it
-             if (logMap.has(dateStr)) {
-                 results.push(logMap.get(dateStr)!);
-             } else {
-                 // Check if we should mark as Alpha
-                 // Condition: Date is in the past OR (Date is Today AND Time > Closing Time)
-                 // Also ensure we don't mark future dates
-                 
-                 let isAlpha = false;
+            // Create a new date object to avoid reference issues
+            const dateObj = new Date(d);
+            // Use local time components to avoid UTC shift
+            const yearStr = dateObj.getFullYear();
+            const monthStr = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const dayStr = String(dateObj.getDate()).padStart(2, '0');
+            const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
 
-                 if (dateStr < todayStr) {
-                     isAlpha = true;
-                 } else if (dateStr === todayStr) {
-                     if (currentHour >= CLOSING_HOUR) {
-                         isAlpha = true;
-                     }
-                 }
+            // If we have a log, use it
+            if (logMap.has(dateStr)) {
+                results.push(logMap.get(dateStr)!);
+            } else {
+                // Check if we should mark as Alpha
+                // Condition: Date is in the past OR (Date is Today AND Time > Closing Time)
+                // Also ensure we don't mark future dates
 
-                 if (isAlpha) {
-                     results.push({
-                         id: `alpha-${dateStr}`,
-                         employee_id: employeeId,
-                         status: 'Alpha',
-                         date: dateStr,
-                         // Use pseudo status time 23:59:59
-                         created_at: `${dateStr}T23:59:59`,
-                         // No photo for Alpha
-                     });
-                 }
-             }
+                let isAlpha = false;
+
+                if (dateStr < todayStr) {
+                    isAlpha = true;
+                } else if (dateStr === todayStr) {
+                    if (currentHour >= CLOSING_HOUR) {
+                        isAlpha = true;
+                    }
+                }
+
+                if (isAlpha) {
+                    results.push({
+                        id: `alpha-${dateStr}`,
+                        employee_id: employeeId,
+                        status: 'Alpha',
+                        date: dateStr,
+                        // Use pseudo status time 23:59:59
+                        created_at: `${dateStr}T23:59:59`,
+                        // No photo for Alpha
+                    });
+                }
+            }
         }
 
         return results;
@@ -237,8 +257,8 @@ export const employeeService = {
     async uploadPhoto(base64Image: string, fileName: string): Promise<string> {
         const filePath = `logs/${fileName}`;
         const { data, error } = await supabase.storage
-          .from('daily_attendance')
-          .upload(filePath, decode(base64Image), { contentType: 'image/jpeg', upsert: true });
+            .from('daily_attendance')
+            .upload(filePath, decode(base64Image), { contentType: 'image/jpeg', upsert: true });
 
         if (error) throw error;
         const { data: { publicUrl } } = supabase.storage.from('daily_attendance').getPublicUrl(filePath);
@@ -277,7 +297,7 @@ export const employeeService = {
     },
 
     async getAttendanceStats() {
-        const today = new Date().toISOString().split('T')[0];
+        const today = this.getLocalDateString();
 
         const { count: totalEmployees, error: empError } = await supabase
             .from("employees")
@@ -288,13 +308,13 @@ export const employeeService = {
         // Get today's logs with late_minutes if available, or calc on fly
         const { data: logs, error: logError } = await supabase
             .from("attendance_logs")
-            .select("*") 
+            .select("*")
             .eq("date", today);
 
         if (logError) throw logError;
 
         const present = logs?.filter(l => l.status === 'Masuk').length || 0;
-        
+
         // Count late. Use stored late_minutes if > 0, OR calc on fly if undefined (for robustness)
         const late = logs?.filter(l => {
             if (l.status !== 'Masuk') return false;
@@ -331,7 +351,7 @@ export const employeeService = {
                 .eq("id", existing.id)
                 .select()
                 .single();
-            
+
             if (error) throw error;
             return data;
         } else {
@@ -347,7 +367,7 @@ export const employeeService = {
                 })
                 .select()
                 .single();
-            
+
             if (error) throw error;
             return data;
         }

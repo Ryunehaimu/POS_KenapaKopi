@@ -20,10 +20,10 @@ export default function KasirMenuScreen() {
             setLoading(true);
             const [productsData, categoriesData] = await Promise.all([
                 productService.getProducts(),
-                categoryService.getCategories()
+                categoryService.getCategories('', 1, 1000)
             ]);
             setProducts(productsData);
-            setCategories(categoriesData);
+            setCategories(categoriesData.data);
         } catch (error) {
             console.error(error);
         } finally {
@@ -60,12 +60,12 @@ export default function KasirMenuScreen() {
             <KasirSidebar activeMenu="menu" />
 
             <View className="flex-1">
-                <ScrollView 
+                <ScrollView
                     contentContainerStyle={{ padding: 32 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 >
                     <View className="flex-row justify-between items-center mb-8">
-                         {/* Search Bar */}
+                        {/* Search Bar */}
                         <View className="flex-1 max-w-md relative">
                             <View className="absolute left-4 top-3 z-10">
                                 <Search size={20} color="#9CA3AF" />
@@ -79,13 +79,13 @@ export default function KasirMenuScreen() {
                         </View>
 
                         <View className="flex-row items-center gap-4">
-                             <Text className="text-4xl font-bold text-gray-900">Tambah Menu</Text>
-                             <TouchableOpacity 
+                            <Text className="text-4xl font-bold text-gray-900">Tambah Menu</Text>
+                            <TouchableOpacity
                                 onPress={() => router.push('/kasir/menu/add')}
                                 className="bg-indigo-600 p-3 rounded-xl shadow-lg shadow-indigo-200"
-                             >
+                            >
                                 <Plus size={24} color="white" />
-                             </TouchableOpacity>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -97,7 +97,7 @@ export default function KasirMenuScreen() {
                         >
                             <Text className={`${selectedCategory === 'all' ? 'text-white' : 'text-indigo-400'} font-medium`}>All</Text>
                         </TouchableOpacity>
-                        
+
                         {categories.map(cat => (
                             <TouchableOpacity
                                 key={cat.id}
@@ -124,10 +124,10 @@ export default function KasirMenuScreen() {
                                             <Image source={{ uri: product.image_url }} className="w-full h-full" resizeMode="cover" />
                                         ) : (
                                             <View className="w-full h-full items-center justify-center bg-gray-100">
-                                                 <Text className="text-gray-400 text-3xl font-bold">{product.name.charAt(0)}</Text>
+                                                <Text className="text-gray-400 text-3xl font-bold">{product.name.charAt(0)}</Text>
                                             </View>
                                         )}
-                                        
+
                                         {/* Category Badge */}
                                         <View className="absolute top-4 right-4 bg-indigo-600 px-3 py-1 rounded-full">
                                             <Text className="text-white text-xs font-bold">{product.categories?.name || 'Uncategorized'}</Text>
@@ -137,8 +137,8 @@ export default function KasirMenuScreen() {
                                     <View className="p-5">
                                         <Text className="text-xl font-bold text-gray-900 mb-1">{product.name}</Text>
                                         <Text className="text-gray-500 mb-4">{formatCurrency(product.price)}</Text>
-                                        
-                                        <TouchableOpacity 
+
+                                        <TouchableOpacity
                                             onPress={() => router.push(`/kasir/menu/${product.id}`)}
                                             className="bg-indigo-600 py-2 rounded-full items-center"
                                         >
@@ -147,7 +147,7 @@ export default function KasirMenuScreen() {
                                     </View>
                                 </View>
                             ))}
-                            
+
                             {filteredProducts.length === 0 && (
                                 <View className="w-full py-20 items-center">
                                     <Text className="text-gray-400 text-lg">Menu tidak ditemukan</Text>
