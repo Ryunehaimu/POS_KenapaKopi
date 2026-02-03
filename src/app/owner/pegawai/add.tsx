@@ -63,7 +63,7 @@ export default function AddEmployeeScreen() {
                 try {
                     finalImageUrl = await employeeService.uploadProfilePhoto(imageUri);
                 } catch (e) {
-                    console.log("Upload failed, proceeding without photo");
+
                     finalImageUrl = '';
                 }
             }

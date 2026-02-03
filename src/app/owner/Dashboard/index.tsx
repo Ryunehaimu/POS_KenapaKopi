@@ -192,10 +192,8 @@ export default function OwnerDashboard() {
                     router.push('/owner/expenses');
                   } else if (item.name === "Report") {
                     router.push('/owner/reports');
-                    // console.log("Report pressed");
                   } else {
                     // Handle other items or show "Coming Soon"
-                    console.log("Pressed:", item.name);
                   }
                 }}
                 className="w-[30%] bg-white p-3 rounded-xl shadow-sm items-center justify-center space-y-2 aspect-square"

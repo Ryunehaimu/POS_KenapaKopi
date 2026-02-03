@@ -43,8 +43,7 @@ export const PaymentModal = ({ visible, onClose, subtotal, onConfirm, loading }:
 
   const handlePrint = async () => {
     // Simulation of 2x printing
-    console.log("Printing Receipt 1...");
-    console.log("Printing Receipt 2...");
+
     // Alert.alert("Printing", "Mencetak 2x Struk..."); // Optional: Too interruptive for real flow
   };
 

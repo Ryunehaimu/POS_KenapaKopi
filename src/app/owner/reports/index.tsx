@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronDown, Download, Calendar } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import OwnerBottomNav from '../../../components/OwnerBottomNav';
 import { reportService, ReportType } from '../../../services/reportService';
 
@@ -267,87 +268,100 @@ export default function ReportsScreen() {
     return (
         <View className="flex-1 bg-gray-50">
             {/* Header */}
-            <View className="bg-white px-6 pt-12 pb-4 shadow-sm z-10">
+            <LinearGradient
+                colors={['#4c1d95', '#7c3aed']}
+                className="pt-12 pb-24 px-6 rounded-b-[40px] shadow-lg relative z-10"
+            >
                 <View className="flex-row items-center mb-4 gap-4">
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <ChevronLeft size={24} color="#374151" />
-                    </TouchableOpacity>
-                    <Text className="text-xl font-bold text-gray-800">Laporan</Text>
-                </View>
-
-                {/* Filters */}
-                <View className="space-y-3">
-                    {/* Report Type Selector */}
-                    <TouchableOpacity
-                        className="flex-row justify-between items-center bg-gray-100 p-3 rounded-lg border border-gray-200 mb-2"
-                        onPress={() => setShowTypePicker(!showTypePicker)}
+                    <TouchableOpacity 
+                        onPress={() => router.back()}
+                        className="p-2 bg-white/20 rounded-full"
                     >
-                        <Text className="font-medium text-gray-700">
-                            {typeLabel}
-                        </Text>
-                        <ChevronDown size={20} color="#6b7280" />
+                        <ChevronLeft size={24} color="white" />
                     </TouchableOpacity>
+                    <Text className="text-xl font-bold text-white">Laporan</Text>
+                </View>
+                <Text className="text-white text-sm font-medium opacity-90 mb-2">
+                    Filter & Periode Laporan
+                </Text>
+            </LinearGradient>
 
-                    {showTypePicker && (
-                        <View className="bg-white border border-gray-200 rounded-lg shadow-lg absolute top-[60px] left-6 right-6 z-50">
-                            {REPORT_TYPES.map((type) => (
-                                <TouchableOpacity
-                                    key={type.value}
-                                    onPress={() => {
-                                        setSelectedType(type.value);
-                                        setShowTypePicker(false);
-                                    }}
-                                    className="p-3 border-b border-gray-100 last:border-0"
-                                >
-                                    <Text className={`text-sm ${selectedType === type.value ? 'text-indigo-600 font-bold' : 'text-gray-600'}`}>
-                                        {type.label}
+            {/* Filters Card - Overlapping Header */}
+            <View className="px-6 -mt-16 z-20">
+                <View className="bg-white p-4 rounded-xl shadow-sm mb-4">
+                    <View className="space-y-3">
+                        {/* Report Type Selector */}
+                        <TouchableOpacity
+                            className="flex-row justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100 mb-2"
+                            onPress={() => setShowTypePicker(!showTypePicker)}
+                        >
+                            <Text className="font-medium text-gray-800">
+                                {typeLabel}
+                            </Text>
+                            <ChevronDown size={20} color="#6b7280" />
+                        </TouchableOpacity>
+
+                        {showTypePicker && (
+                            <View className="bg-white border border-gray-200 rounded-lg shadow-lg absolute top-[60px] left-0 right-0 z-50">
+                                {REPORT_TYPES.map((type) => (
+                                    <TouchableOpacity
+                                        key={type.value}
+                                        onPress={() => {
+                                            setSelectedType(type.value);
+                                            setShowTypePicker(false);
+                                        }}
+                                        className="p-3 border-b border-gray-100 last:border-0"
+                                    >
+                                        <Text className={`text-sm ${selectedType === type.value ? 'text-indigo-600 font-bold' : 'text-gray-600'}`}>
+                                            {type.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+
+                        {/* Period Selector Row */}
+                        <View className="flex-row gap-3">
+                            {/* Start Range */}
+                            <TouchableOpacity
+                                className="flex-1 bg-white border border-gray-200 p-2 rounded-lg"
+                                onPress={() => {
+                                    setActivePicker('start');
+                                    setShowMonthPicker(true);
+                                }}
+                            >
+                                <Text className="text-[10px] text-gray-400 font-bold uppercase mb-1">Dari</Text>
+                                <View className="flex-row items-center gap-2">
+                                    <Calendar size={14} color="#4f46e5" />
+                                    <Text className="text-gray-700 font-medium text-xs">
+                                        {MONTHS[startMonth].substring(0, 3)} {startYear}
                                     </Text>
-                                </TouchableOpacity>
-                            ))}
+                                </View>
+                            </TouchableOpacity>
+
+                            {/* End Range */}
+                            <TouchableOpacity
+                                className="flex-1 bg-white border border-gray-200 p-2 rounded-lg"
+                                onPress={() => {
+                                    setActivePicker('end');
+                                    setShowMonthPicker(true);
+                                }}
+                            >
+                                <Text className="text-[10px] text-gray-400 font-bold uppercase mb-1">Sampai</Text>
+                                <View className="flex-row items-center gap-2">
+                                    <Calendar size={14} color="#4f46e5" />
+                                    <Text className="text-gray-700 font-medium text-xs">
+                                        {MONTHS[endMonth].substring(0, 3)} {endYear}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
                         </View>
-                    )}
-
-                    {/* Period Selector Row */}
-                    <View className="flex-row gap-3">
-                        {/* Start Range */}
-                        <TouchableOpacity
-                            className="flex-1 bg-white border border-gray-300 p-2 rounded-lg"
-                            onPress={() => {
-                                setActivePicker('start');
-                                setShowMonthPicker(true);
-                            }}
-                        >
-                            <Text className="text-[10px] text-gray-400 font-bold uppercase mb-1">Dari</Text>
-                            <View className="flex-row items-center gap-2">
-                                <Calendar size={14} color="#4f46e5" />
-                                <Text className="text-gray-700 font-medium text-xs">
-                                    {MONTHS[startMonth].substring(0, 3)} {startYear}
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-
-                        {/* End Range */}
-                        <TouchableOpacity
-                            className="flex-1 bg-white border border-gray-300 p-2 rounded-lg"
-                            onPress={() => {
-                                setActivePicker('end');
-                                setShowMonthPicker(true);
-                            }}
-                        >
-                            <Text className="text-[10px] text-gray-400 font-bold uppercase mb-1">Sampai</Text>
-                            <View className="flex-row items-center gap-2">
-                                <Calendar size={14} color="#4f46e5" />
-                                <Text className="text-gray-700 font-medium text-xs">
-                                    {MONTHS[endMonth].substring(0, 3)} {endYear}
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
                     </View>
                 </View>
             </View>
 
             {/* Content / Preview List */}
-            <ScrollView className="flex-1 px-6 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
+            <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 100 }}>
                 {loading ? (
                     <ActivityIndicator size="large" color="#4F46E5" className="mt-10" />
                 ) : (
