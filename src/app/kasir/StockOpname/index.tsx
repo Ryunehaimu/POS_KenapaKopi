@@ -202,29 +202,36 @@ export default function KasirStockOpnameScreen() {
                     <View className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 min-h-[500px] mb-8">
                         {/* ... existing table code ... */}
                         {/* ... existing table code ... */}
-                        <View className="flex-row justify-between items-center mb-6">
+                        <View className="flex-row items-end mb-6">
+                            {/* LEFT */}
                             <View className="flex-1 mr-4">
-                                <Text className="text-xl font-bold text-gray-900 mb-2">Stok Bahan</Text>
-                                <View className="bg-gray-100 rounded-lg px-4 py-2 flex-row items-center border border-gray-200">
+                                <Text className="text-xl font-bold text-gray-900 mb-2">
+                                    Stok Bahan
+                                </Text>
+
+                                <View className="bg-gray-100 rounded-lg px-4 flex-row items-center border border-gray-200 h-14">
                                     <TextInput
                                         placeholder="Cari bahan..."
                                         className="flex-1 text-gray-700"
                                         value={searchQuery}
                                         onChangeText={(text) => {
                                             setSearchQuery(text);
-                                            setCurrentPage(1); // Reset to page 1 on search
+                                            setCurrentPage(1);
                                         }}
                                     />
                                 </View>
                             </View>
+
+                            {/* RIGHT */}
                             <TouchableOpacity
                                 onPress={() => router.push('/kasir/StockOpname/add')}
-                                className="bg-indigo-600 px-5 py-3 rounded-xl flex-row items-center shadow-lg shadow-indigo-200 mt-6"
+                                className="bg-indigo-600 h-14 px-6 rounded-xl flex-row items-center justify-center shadow-lg shadow-indigo-200"
                             >
                                 <Plus size={20} color="white" className="mr-2" />
                                 <Text className="text-white font-bold">Tambah</Text>
                             </TouchableOpacity>
                         </View>
+
 
                         {/* Table Header */}
                         <View className="flex-row items-center py-4 border-b border-gray-200 mb-2">
@@ -289,7 +296,7 @@ export default function KasirStockOpnameScreen() {
 
                     {/* === STOCK LOGS SECTION === */}
                     <View className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-                        <View className="flex-row justify-between items-center mb-6">
+                        <View className="flex-row items-end mb-6">
                             <View className="flex-1 mr-4">
                                 <Text className="text-xl font-bold text-gray-900 mb-2">Riwayat Perubahan Stok</Text>
                                 <View className="bg-gray-100 rounded-lg px-4 py-2 flex-row items-center border border-gray-200">
@@ -306,7 +313,7 @@ export default function KasirStockOpnameScreen() {
                             </View>
 
                             {/* Filter Dropdown */}
-                            <View className="flex-row bg-gray-100 p-1 rounded-lg">
+                            <View className="flex-row h-16 bg-gray-100 p-1 rounded-lg">
                                 {['all', 'in', 'out', 'adjustment', 'transaction'].map((type) => {
                                     const isActive = logFilter === type;
                                     return (
@@ -321,7 +328,7 @@ export default function KasirStockOpnameScreen() {
                                             }}
                                             className="px-4 py-2 rounded-md"
                                         >
-                                            <Text className={`capitalize font-medium ${isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+                                            <Text className={`capitalize font-medium my-auto ${isActive ? 'text-gray-900' : 'text-gray-500'}`}>
                                                 {type === 'adjustment' ? 'Adj' : type}
                                             </Text>
                                         </TouchableOpacity>

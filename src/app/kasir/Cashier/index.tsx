@@ -10,6 +10,8 @@ import { PaymentModal } from '../../../components/cashier/PaymentModal';
 import { productService, Product } from '../../../services/productService';
 import { categoryService, Category } from '../../../services/categoryService';
 import { orderService } from '../../../services/orderService';
+import * as Print from 'expo-print';
+import { generateReceiptHtml } from '../../../utils/receiptGenerator';
 
 export default function CashierScreen() {
     const router = useRouter();
@@ -132,6 +134,23 @@ export default function CashierScreen() {
             }
 
             setPaymentModalVisible(false);
+
+            // Auto-Print Receipt
+            try {
+                const html = generateReceiptHtml(
+                    { ...orderData, payment_method: paymentMethod },
+                    cart,
+                    customerName,
+                    change || 0,
+                    cashReceived || 0
+                );
+                await Print.printAsync({
+                    html,
+                });
+            } catch (printError) {
+                console.error("Print Error:", printError);
+                Alert.alert("Info", "Gagal mencetak struk otomatis");
+            }
 
             Alert.alert("Sukses", `Transaksi Berhasil!\nKembalian: Rp ${(change || 0).toLocaleString()}`, [
                 {
