@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "POS Kenapa Kopi",
-    "scheme": "POS Kenapa Kopi",
+    "scheme": "pos-kenapa-kop",
     "slug": "pos-kenapa-kopi",
     "version": "1.0.0",
     "orientation": "landscape",
@@ -46,8 +46,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "2cb908d4-18e7-47d8-983c-8880a67f15e0"
+        "projectId": "27e6e6ec-a786-44eb-a08c-50290842078b"
       }
-    }
+    },
+    "owner": "ryunehaimu123"
   }
 }

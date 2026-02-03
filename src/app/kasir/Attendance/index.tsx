@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image, Modal, ScrollView } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import * as FaceDetector from 'expo-face-detector';
 import { ArrowLeft, RefreshCcw, Camera, User } from 'lucide-react-native';
 
 import { useRouter } from 'expo-router';
@@ -53,24 +52,9 @@ export default function AttendancePage() {
 
         setCapturedPhoto(photo);
 
-        // 1. Detect Face
-        const options = {
-           mode: FaceDetector.FaceDetectorMode.fast,
-           detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
-           runClassifications: FaceDetector.FaceDetectorClassifications.none,
-        };
-        
-        const result = await FaceDetector.detectFacesAsync(photo.uri, options);
-
-        if (result.faces.length > 0) {
-           // 2. Open Selection Modal instead of Auto-Identify
-           setShowEmployeeModal(true);
-           fetchEmployees(); 
-        } else {
-           Alert.alert("Wajah Tidak Terdeteksi", "Mohon pastikan wajah anda terlihat jelas di kamera.", [
-             { text: "Coba Lagi", onPress: resetFlow }
-           ]);
-        }
+        // Open employee selection modal directly (face detection removed)
+        setShowEmployeeModal(true);
+        fetchEmployees();
 
       } catch (error) {
         Alert.alert("Error", "Gagal mengambil foto.");
