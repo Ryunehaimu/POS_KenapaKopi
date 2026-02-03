@@ -196,16 +196,16 @@ export default function OwnerDashboard() {
                     // Handle other items or show "Coming Soon"
                   }
                 }}
-                className="w-[30%] bg-white p-3 rounded-xl shadow-sm items-center justify-center space-y-2 aspect-square"
+                className="w-[30%] my-auto mx-auto bg-white rounded-xl shadow-sm items-center justify-center space-y-2 aspect-square"
               >
-                <Image source={item.icon} className="w-10 h-10 object-contain" />
+                <Image source={item.icon} className="w-20 h-20 object-contain" />
                 <Text className="text-[10px] font-medium text-center text-gray-800">{item.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* 4. RANKING MENU (Real Data) */}
-          <View className="bg-white rounded-3xl p-6 shadow-sm">
+          <View className="bg-white rounded-3xl p-6 shadow-sm mt-5">
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-lg font-bold text-gray-900">Ranking Menu (Bulan Ini)</Text>
               <TouchableOpacity onPress={() => router.push('/owner/ranking')}>
@@ -217,7 +217,7 @@ export default function OwnerDashboard() {
               {monthlyStats.menu_sales.slice(0, 4).map((item, idx) => (
                 <View key={idx} className="flex-row items-center justify-between border-b border-gray-50 pb-2 last:border-0 last:pb-0">
                   <View className="flex-row items-center space-x-3 my-2">
-                    <View className={`w-10 h-10 rounded-full bg-indigo-100 items-center justify-center`}>
+                    <View className={`w-10 h-10 rounded-full bg-indigo-100 items-center justify-center mr-3`}>
                       <Text className="font-bold text-indigo-600">{idx + 1}</Text>
                     </View>
                     <View>

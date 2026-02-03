@@ -50,7 +50,7 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
   ];
 
   return (
-    <View className={`bg-white border-r border-gray-200 flex-col py-8 justify-between ${isExpanded ? 'w-64 px-4' : 'w-20 items-center'}`}>
+    <View className={`bg-white border-r border-gray-200 flex-col py-11 justify-between ${isExpanded ? 'w-64 px-4' : 'w-20 items-center'}`}>
       <View className="space-y-6">
         {/* Toggle Button */}
         <TouchableOpacity 
@@ -70,8 +70,8 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
                onPress={() => item.path ? router.push(item.path as any) : null}
                className={`flex-row items-center rounded-xl ${
                    isExpanded 
-                    ? 'px-4 py-3 space-x-3 w-full' 
-                    : 'p-3 justify-center aspect-square'
+                    ? 'px-4 my-1 py-3 space-x-3 w-full' 
+                    : 'p-3 my-1 justify-center aspect-square'
                } ${isActive ? 'bg-indigo-600 shadow-md shadow-indigo-200' : 'hover:bg-gray-50'}`}
              >
                <item.icon color={isActive ? 'white' : '#4B5563'} size={24} />
@@ -87,7 +87,7 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
 
       <View className={`space-y-6 ${isExpanded ? 'px-4' : 'items-center'}`}>
          {isExpanded ? (
-             <View className="flex-row items-center space-x-3">
+             <View className="flex-row items-center space-x-3 my-5">
                  <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
                     <Text className="text-white font-bold">K</Text>
                  </View>
@@ -97,7 +97,7 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
                  </View>
              </View>
          ) : (
-             <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
+             <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center my-5">
                 <Text className="text-white font-bold">K</Text>
              </View>
          )}

@@ -117,13 +117,6 @@ export default function KasirCategoryScreen() {
              <View className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 min-h-[500px]">
                 <View className="flex-row justify-between items-center mb-6">
                     <Text className="text-xl font-bold text-gray-900">Daftar Kategori</Text>
-                    <TouchableOpacity 
-                        onPress={() => router.push('/kasir/categories/add')}
-                        className="bg-indigo-600 px-5 py-3 rounded-xl flex-row items-center shadow-lg shadow-indigo-200"
-                    >
-                        <Plus size={20} color="white" className="mr-2" />
-                        <Text className="text-white font-bold">Tambah</Text>
-                    </TouchableOpacity>
                 </View>
 
                 {/* Table Header */}
