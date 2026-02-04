@@ -195,7 +195,7 @@ class PrinterService {
     }
 
     /**
-     * Print receipt with ESC/POS formatting
+     * Print receipt with ESC/POS formatting (prints 2 copies)
      */
     async printReceipt(
         order: any,
@@ -226,51 +226,64 @@ class PrinterService {
             return left + ' '.repeat(spaces) + right;
         };
 
-        let receipt = '';
-        
-        // Header
-        receipt += '<C><B>POS KenapaKopi</B></C>\n';
-        receipt += '<C>Jl. Kopi No. 123, Jakarta</C>\n';
-        receipt += '<C>Telp: 0812-3456-7890</C>\n';
-        receipt += line + '\n';
-        
-        // Order Info
-        receipt += `No: ${order.id?.slice(0, 8) || '-'}\n`;
-        receipt += `Tgl: ${date}\n`;
-        receipt += `Kasir: Admin\n`;
-        receipt += `Pelanggan: ${customerName}\n`;
-        receipt += line + '\n';
-        
-        // Items
-        items.forEach(item => {
-            const itemTotal = item.price * item.quantity;
-            receipt += `${item.name}\n`;
-            receipt += leftRight(`  ${item.quantity} x ${formatPrice(item.price)}`, formatPrice(itemTotal)) + '\n';
-        });
-        
-        receipt += line + '\n';
-        
-        // Total
-        receipt += '<B>' + leftRight('TOTAL', formatPrice(order.total_amount)) + '</B>\n';
-        
-        // Payment Info
-        if (order.payment_method === 'cash') {
-            receipt += leftRight('Tunai', formatPrice(cashReceived)) + '\n';
-            receipt += leftRight('Kembalian', formatPrice(change)) + '\n';
-        } else {
-            receipt += leftRight('Metode', order.payment_method?.toUpperCase() || 'QRIS') + '\n';
-        }
-        
-        receipt += line + '\n';
-        
-        // Footer
-        receipt += '<C>Terima Kasih!</C>\n';
-        receipt += '<C>Selamat Menikmati</C>\n';
-        receipt += '\n\n\n'; // Feed paper
+        // Generate receipt content for one copy
+        const generateReceipt = (copyLabel: string) => {
+            let receipt = '';
+            
+            // Header
+            receipt += '<C><B>POS KenapaKopi</B></C>\n';
+            receipt += '<C>Jl. Kopi No. 123, Jakarta</C>\n';
+            receipt += '<C>Telp: 0812-3456-7890</C>\n';
+            receipt += `<C>${copyLabel}</C>\n`;
+            receipt += line + '\n';
+            
+            // Order Info
+            receipt += `No: ${order.id?.slice(0, 8) || '-'}\n`;
+            receipt += `Tgl: ${date}\n`;
+            receipt += `Kasir: Admin\n`;
+            receipt += `Pelanggan: ${customerName}\n`;
+            receipt += line + '\n';
+            
+            // Items
+            items.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                receipt += `${item.name}\n`;
+                receipt += leftRight(`  ${item.quantity} x ${formatPrice(item.price)}`, formatPrice(itemTotal)) + '\n';
+            });
+            
+            receipt += line + '\n';
+            
+            // Total
+            receipt += '<B>' + leftRight('TOTAL', formatPrice(order.total_amount)) + '</B>\n';
+            
+            // Payment Info
+            if (order.payment_method === 'cash') {
+                receipt += leftRight('Tunai', formatPrice(cashReceived)) + '\n';
+                receipt += leftRight('Kembalian', formatPrice(change)) + '\n';
+            } else {
+                receipt += leftRight('Metode', order.payment_method?.toUpperCase() || 'QRIS') + '\n';
+            }
+            
+            receipt += line + '\n';
+            
+            // Footer
+            receipt += '<C>Terima Kasih!</C>\n';
+            receipt += '<C>Selamat Menikmati</C>\n';
+            receipt += '\n\n\n'; // Feed paper
+            
+            return receipt;
+        };
 
         try {
-            await BLEPrinter.printText(receipt);
-            console.log('[PrinterService] Receipt printed successfully');
+            // Print Copy 1 - Customer
+            const receipt1 = generateReceipt('--- PELANGGAN ---');
+            await BLEPrinter.printText(receipt1);
+            
+            // Print Copy 2 - Kasir/Arsip
+            const receipt2 = generateReceipt('--- KASIR/ARSIP ---');
+            await BLEPrinter.printText(receipt2);
+            
+            console.log('[PrinterService] 2 copies printed successfully');
         } catch (error) {
             console.error('[PrinterService] Print receipt error:', error);
             throw error;
