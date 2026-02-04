@@ -9,12 +9,13 @@ import {
   Coffee,
   History,
   ShoppingCart,
-  UserCheck
+  UserCheck,
+  Printer
 } from 'lucide-react-native';
 import { authService } from '../services/authService';
 
 interface KasirSidebarProps {
-  activeMenu: 'dashboard' | 'categories' | 'stock' | 'menu' | 'transactions' | 'cashier' | 'attendance';
+  activeMenu: 'dashboard' | 'categories' | 'stock' | 'menu' | 'transactions' | 'cashier' | 'attendance' | 'printerSettings';
 }
 
 export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
@@ -47,6 +48,7 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
     { key: 'stock', icon: Package, path: '/kasir/StockOpname', label: 'Stok Opname' },
     { key: 'categories', icon: Tags, path: '/kasir/categories', label: 'Kategori' },
     { key: 'attendance', icon: UserCheck, path: '/kasir/Attendance', label: 'Absensi' },
+    { key: 'printerSettings', icon: Printer, path: '/kasir/PrinterSettings', label: 'Pengaturan Printer' },
   ];
 
   return (

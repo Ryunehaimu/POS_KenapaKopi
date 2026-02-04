@@ -12,6 +12,7 @@ import { categoryService, Category } from '../../../services/categoryService';
 import { orderService } from '../../../services/orderService';
 import * as Print from 'expo-print';
 import { generateReceiptHtml } from '../../../utils/receiptGenerator';
+import { printerService } from '../../../services/printerService';
 
 export default function CashierScreen() {
     const router = useRouter();
@@ -137,19 +138,53 @@ export default function CashierScreen() {
 
             // Auto-Print Receipt
             try {
-                const html = generateReceiptHtml(
-                    { ...orderData, payment_method: paymentMethod },
-                    cart,
-                    customerName,
-                    change || 0,
-                    cashReceived || 0
-                );
-                await Print.printAsync({
-                    html,
-                });
+                // Try Bluetooth thermal printer first
+                if (printerService.isConnected()) {
+                    await printerService.printReceipt(
+                        { ...orderData, payment_method: paymentMethod },
+                        cart,
+                        customerName,
+                        change || 0,
+                        cashReceived || 0
+                    );
+                } else {
+                    // Fallback: Try to auto-connect to saved printer
+                    const autoConnected = await printerService.autoConnect();
+                    if (autoConnected) {
+                        await printerService.printReceipt(
+                            { ...orderData, payment_method: paymentMethod },
+                            cart,
+                            customerName,
+                            change || 0,
+                            cashReceived || 0
+                        );
+                    } else {
+                        // Ultimate fallback: use expo-print dialog
+                        const html = generateReceiptHtml(
+                            { ...orderData, payment_method: paymentMethod },
+                            cart,
+                            customerName,
+                            change || 0,
+                            cashReceived || 0
+                        );
+                        await Print.printAsync({ html });
+                    }
+                }
             } catch (printError) {
                 console.error("Print Error:", printError);
-                Alert.alert("Info", "Gagal mencetak struk otomatis");
+                // Fallback to expo-print on error
+                try {
+                    const html = generateReceiptHtml(
+                        { ...orderData, payment_method: paymentMethod },
+                        cart,
+                        customerName,
+                        change || 0,
+                        cashReceived || 0
+                    );
+                    await Print.printAsync({ html });
+                } catch (fallbackError) {
+                    Alert.alert("Info", "Gagal mencetak struk");
+                }
             }
 
             Alert.alert("Sukses", `Transaksi Berhasil!\nKembalian: Rp ${(change || 0).toLocaleString()}`, [
