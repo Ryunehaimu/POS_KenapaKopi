@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Calendar, CreditCard, Banknote, FileText, Coffee } from 'lucide-react-native';
+import { Calendar, CreditCard, Banknote, FileText, Coffee, Edit } from 'lucide-react-native';
 import KasirSidebar from '../../../components/KasirSidebar';
 import { orderService, Order } from '../../../services/orderService';
 import { inventoryService } from '../../../services/inventoryService';
@@ -239,6 +239,7 @@ export default function TransactionsScreen() {
                                                 <Text className="flex-1 text-gray-500 font-bold">Metode</Text>
                                                 <Text className="flex-1 text-gray-500 font-bold text-right">Total</Text>
                                                 <Text className="flex-1 text-gray-500 font-bold text-center">Status</Text>
+                                                <Text className="w-16 text-gray-500 font-bold text-center">Aksi</Text>
                                             </View>
                                             {recentOrders.map((order, idx) => (
                                                 <View key={idx} className="flex-row py-4 border-b border-gray-50 hover:bg-gray-50 items-center">
@@ -255,11 +256,27 @@ export default function TransactionsScreen() {
                                                     </View>
                                                     <Text className="flex-1 text-gray-900 font-bold text-right">Rp {order.total_amount.toLocaleString()}</Text>
                                                     <View className="flex-1 items-center">
-                                                        <View className="bg-green-100 px-2 py-1 rounded-full">
-                                                            <Text className="text-green-800 text-xs font-bold capitalize">
+                                                        <View className={`px-2 py-1 rounded-full ${
+                                                            order.status === 'completed' ? 'bg-green-100' 
+                                                            : order.status === 'pending' ? 'bg-yellow-100'
+                                                            : 'bg-red-100'
+                                                        }`}>
+                                                            <Text className={`text-xs font-bold capitalize ${
+                                                                order.status === 'completed' ? 'text-green-800'
+                                                                : order.status === 'pending' ? 'text-yellow-800'
+                                                                : 'text-red-800'
+                                                            }`}>
                                                                 {order.status}
                                                             </Text>
                                                         </View>
+                                                    </View>
+                                                    <View className="w-16 items-center">
+                                                        <TouchableOpacity 
+                                                            onPress={() => router.push(`/kasir/Transactions/edit/${order.id}`)}
+                                                            className="bg-indigo-100 p-2 rounded-lg"
+                                                        >
+                                                            <Edit size={16} color="#4f46e5" />
+                                                        </TouchableOpacity>
                                                     </View>
                                                 </View>
                                             ))}

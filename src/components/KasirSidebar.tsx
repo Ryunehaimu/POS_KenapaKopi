@@ -78,7 +78,7 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
              >
                <item.icon color={isActive ? 'white' : '#4B5563'} size={24} />
                {isExpanded && (
-                   <Text className={`font-bold ml-3 ${isActive ? 'text-white' : 'text-gray-600'}`}>
+                   <Text className={`font-regular text-xs ml-3 ${isActive ? 'text-white' : 'text-gray-600'}`}>
                        {item.label}
                    </Text>
                )}
@@ -89,28 +89,28 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
 
       <View className={`space-y-6 ${isExpanded ? 'px-4' : 'items-center'}`}>
          {isExpanded ? (
-             <View className="flex-row items-center space-x-3 my-5">
-                 <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
+             <View className="flex-row space-x-3 mt-2">
+                 <View className="w-10 h-10 rounded-full bg-indigo-600 items-center mr-2 justify-center">
                     <Text className="text-white font-bold">K</Text>
                  </View>
                  <View>
-                     <Text className="font-bold text-gray-900">Kasir</Text>
-                     <Text className="text-xs text-gray-500">Active</Text>
+                     <Text className="font-bold text-gray-900 text-xs">Kasir</Text>
+                     <Text className="text-xs text-gray-500 text-[8px] -mt-2">Active</Text>
                  </View>
              </View>
          ) : (
-             <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center my-5">
+             <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
                 <Text className="text-white font-bold">K</Text>
              </View>
          )}
 
          {isExpanded ? (
              <TouchableOpacity onPress={handleLogout} className="flex-row items-center space-x-3 p-2 rounded-lg hover:bg-red-50">
-                <LogOut color="#EF4444" size={20} />
-                <Text className="text-red-500 font-bold ml-3">Keluar</Text>
+                <LogOut color="#EF4444" size={15} />
+                <Text className="text-red-500 font-bold text-xs ml-3">Keluar</Text>
              </TouchableOpacity>
          ) : (
-             <TouchableOpacity onPress={handleLogout}>
+             <TouchableOpacity onPress={handleLogout} className="mb-0 mt-5">
                <LogOut color="#EF4444" size={20} />
              </TouchableOpacity>
          )}

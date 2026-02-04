@@ -108,9 +108,17 @@ export const orderService = {
       .rpc('process_order_stock_deduction', { p_order_id: orderId });
 
     if (error) {
-      console.error("Stock Deduction Error:", error);
       // We log but don't throw, as the order itself was successful.
       // In a real app, this might trigger a manual review flag.
+    }
+  },
+
+  async restoreOrderStock(orderId: string) {
+    const { error } = await supabase
+      .rpc('restore_order_stock', { p_order_id: orderId });
+
+    if (error) {
+      throw error;
     }
   },
 
@@ -184,5 +192,65 @@ export const orderService = {
       quantity_sold: number;
       total_revenue: number;
     }[];
+  },
+
+  async updateOrder(
+    orderId: string,
+    updates: {
+      customer_name?: string;
+      payment_method?: 'cash' | 'qris';
+      status?: 'pending' | 'completed' | 'cancelled';
+      total_amount?: number;
+    },
+    newItems?: OrderItem[]
+  ) {
+    // 1. Update Order
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .update({
+        customer_name: updates.customer_name,
+        payment_method: updates.payment_method,
+        status: updates.status,
+        total_amount: updates.total_amount
+      })
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (orderError) throw orderError;
+
+    // 2. Update Items if provided (replace all)
+    if (newItems && newItems.length > 0) {
+      // Delete existing items
+      await supabase.from('order_items').delete().eq('order_id', orderId);
+
+      // Insert new items
+      const itemsToInsert = newItems.map(item => ({
+        order_id: orderId,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.subtotal
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+    }
+
+    return orderData;
+  },
+
+  async deleteOrder(orderId: string) {
+    // order_items should cascade delete if FK is set up
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', orderId);
+
+    if (error) throw error;
+    return true;
   }
 };

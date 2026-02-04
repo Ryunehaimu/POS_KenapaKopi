@@ -22,9 +22,9 @@ class PrinterService {
         try {
             await BLEPrinter.init();
             this.isInitialized = true;
-            console.log('[PrinterService] Initialized');
+            
         } catch (error) {
-            console.error('[PrinterService] Init error:', error);
+            
             throw error;
         }
     }
@@ -47,12 +47,12 @@ class PrinterService {
             );
 
             if (!allGranted) {
-                console.warn('[PrinterService] Some permissions not granted:', granted);
+                
             }
 
             return allGranted;
         } catch (error) {
-            console.error('[PrinterService] Permission request error:', error);
+            
             return false;
         }
     }
@@ -70,10 +70,10 @@ class PrinterService {
             }
 
             const devices = await BLEPrinter.getDeviceList();
-            console.log('[PrinterService] Found devices:', devices);
+            
             return devices as PrinterDevice[];
         } catch (error) {
-            console.error('[PrinterService] Scan error:', error);
+            
             throw error;
         }
     }
@@ -98,9 +98,9 @@ class PrinterService {
                 inner_mac_address: macAddress
             };
             
-            console.log('[PrinterService] Connected to:', this.connectedPrinter);
+            
         } catch (error) {
-            console.error('[PrinterService] Connect error:', error);
+            
             this.connectedPrinter = null;
             throw error;
         }
@@ -113,9 +113,9 @@ class PrinterService {
         try {
             await BLEPrinter.closeConn();
             this.connectedPrinter = null;
-            console.log('[PrinterService] Disconnected');
+            
         } catch (error) {
-            console.error('[PrinterService] Disconnect error:', error);
+            
         }
     }
 
@@ -139,9 +139,9 @@ class PrinterService {
     async saveDefaultPrinter(device: PrinterDevice): Promise<void> {
         try {
             await AsyncStorage.setItem(PRINTER_STORAGE_KEY, JSON.stringify(device));
-            console.log('[PrinterService] Default printer saved:', device.device_name);
+            
         } catch (error) {
-            console.error('[PrinterService] Save error:', error);
+            
         }
     }
 
@@ -156,7 +156,7 @@ class PrinterService {
             }
             return null;
         } catch (error) {
-            console.error('[PrinterService] Load error:', error);
+            
             return null;
         }
     }
@@ -173,7 +173,7 @@ class PrinterService {
             }
             return false;
         } catch (error) {
-            console.error('[PrinterService] Auto-connect failed:', error);
+            
             return false;
         }
     }
@@ -189,7 +189,7 @@ class PrinterService {
         try {
             await BLEPrinter.printText(text);
         } catch (error) {
-            console.error('[PrinterService] Print error:', error);
+            
             throw error;
         }
     }
@@ -283,9 +283,9 @@ class PrinterService {
             const receipt2 = generateReceipt('--- KASIR/ARSIP ---');
             await BLEPrinter.printText(receipt2);
             
-            console.log('[PrinterService] 2 copies printed successfully');
+            
         } catch (error) {
-            console.error('[PrinterService] Print receipt error:', error);
+            
             throw error;
         }
     }
@@ -313,9 +313,9 @@ Time: ${new Date().toLocaleString('id-ID')}
 
         try {
             await BLEPrinter.printText(testReceipt);
-            console.log('[PrinterService] Test page printed');
+            
         } catch (error) {
-            console.error('[PrinterService] Test print error:', error);
+            
             throw error;
         }
     }
@@ -326,9 +326,9 @@ Time: ${new Date().toLocaleString('id-ID')}
     async clearDefaultPrinter(): Promise<void> {
         try {
             await AsyncStorage.removeItem(PRINTER_STORAGE_KEY);
-            console.log('[PrinterService] Default printer cleared');
+            
         } catch (error) {
-            console.error('[PrinterService] Clear error:', error);
+            
         }
     }
 }

@@ -51,6 +51,59 @@ begin
 end;
 $$;
 
+-- Function to RESTORE stock when order is cancelled (Reverse of deduction)
+create or replace function restore_order_stock(p_order_id uuid)
+returns void
+language plpgsql
+security definer
+as $$
+declare
+    v_item record;
+    v_ingredient record;
+    v_restore_amount float;
+begin
+    -- Loop through each item in the order
+    for v_item in 
+        select product_id, quantity 
+        from order_items 
+        where order_id = p_order_id
+    loop
+        -- Loop through ingredients for this product (Recipe)
+        for v_ingredient in
+            select ingredient_id, quantity
+            from product_ingredients
+            where product_id = v_item.product_id
+        loop
+            -- Calculate total amount to restore (Order Qty * Recipe Qty)
+            v_restore_amount := v_item.quantity * v_ingredient.quantity;
+
+            -- 1. Add back to ingredients table
+            update ingredients
+            set current_stock = current_stock + v_restore_amount
+            where id = v_ingredient.ingredient_id;
+
+            -- 2. Log changes to stock_logs
+            insert into stock_logs (
+                ingredient_id,
+                change_amount,
+                current_stock_snapshot,
+                change_type,
+                notes
+            )
+            select 
+                id, 
+                v_restore_amount, 
+                current_stock, 
+                'adjustment', 
+                'Order Cancelled - Stock Restored: ' || p_order_id
+            from ingredients
+            where id = v_ingredient.ingredient_id;
+            
+        end loop;
+    end loop;
+end;
+$$;
+
 -- Function to get daily sales report (Revenue, Count, Split, Menu Sales)
 create or replace function get_daily_sales_report(report_date date)
 returns json
