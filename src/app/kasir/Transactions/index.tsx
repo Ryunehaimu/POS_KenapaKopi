@@ -151,7 +151,8 @@ export default function TransactionsScreen() {
                     formattedItems,
                     fullOrder.customer_name,
                     0,
-                    fullOrder.total_amount
+                    fullOrder.total_amount,
+                    '--- REPRINT ---'
                 );
                 Alert.alert("Sukses", "Struk berhasil dicetak ulang");
             }

@@ -150,7 +150,7 @@ export default function CashierScreen() {
 
             setPaymentModalVisible(false);
 
-            // Auto-Print Receipt
+            // Auto-Print Receipt (COPY 1 - CUSTOMER)
             try {
                 // Try Bluetooth thermal printer first
                 if (printerService.isConnected()) {
@@ -159,7 +159,8 @@ export default function CashierScreen() {
                         cart,
                         customerName,
                         change || 0,
-                        cashReceived || 0
+                        cashReceived || 0,
+                        ''
                     );
                 } else {
                     // Fallback: Try to auto-connect to saved printer
@@ -170,7 +171,8 @@ export default function CashierScreen() {
                             cart,
                             customerName,
                             change || 0,
-                            cashReceived || 0
+                            cashReceived || 0,
+                            ''
                         );
                     } else {
                         // Ultimate fallback: use expo-print dialog
@@ -204,7 +206,36 @@ export default function CashierScreen() {
             Alert.alert("Sukses", `Transaksi Berhasil!\nKembalian: Rp ${(change || 0).toLocaleString()}`, [
                 {
                     text: "OK",
-                    onPress: () => {
+                    onPress: async () => {
+                        // PRINT COPY 2 - STORE/ARCHIVE
+                        try {
+                            if (printerService.isConnected()) {
+                                await printerService.printReceipt(
+                                    { ...orderData, payment_method: paymentMethod, note },
+                                    cart,
+                                    customerName,
+                                    change || 0,
+                                    cashReceived || 0,
+                                    '--- KASIR/ARSIP ---'
+                                );
+                            } else {
+                                const autoConnected = await printerService.autoConnect();
+                                if (autoConnected) {
+                                    await printerService.printReceipt(
+                                        { ...orderData, payment_method: paymentMethod, note },
+                                        cart,
+                                        customerName,
+                                        change || 0,
+                                        cashReceived || 0,
+                                        '--- KASIR/ARSIP ---'
+                                    );
+                                }
+                            }
+                        } catch (e) {
+                            console.log("Failed to print second copy", e);
+                            // Silent fail for second copy or show toast
+                        }
+
                         setCart([]);
                         setCustomerName('');
                         setNote('');
