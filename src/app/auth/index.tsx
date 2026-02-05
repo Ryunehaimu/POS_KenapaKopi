@@ -37,9 +37,10 @@ export default function Auth() {
   }, []);
 
   const redirectBasedOnRole = (email: string) => {
-    if (email.toLowerCase().startsWith("kasir")) {
+    const lowerEmail = email.toLowerCase();
+    if (lowerEmail.startsWith("kasir")) {
       router.replace('/kasir/Dashboard');
-    } else if (email.toLowerCase().startsWith("owner")) {
+    } else if (lowerEmail.startsWith("owner") || lowerEmail.startsWith("captain")) {
       router.replace('/owner/Dashboard');
     } else {
       // Default fallback or handle other roles

@@ -21,6 +21,7 @@ const MENU_ITEMS = [
 export default function OwnerDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'owner' | 'captain'>('owner');
 
   // Daily Stats State
   const [dailyStats, setDailyStats] = useState<{
@@ -65,6 +66,13 @@ export default function OwnerDashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
+      
+      // 0. Check User Role
+      const { session } = await authService.getSession();
+      const email = session?.user?.email || "";
+      const isCaptain = email.toLowerCase().startsWith("captain");
+      setUserRole(isCaptain ? 'captain' : 'owner');
+
       const now = new Date();
 
       // 1. Daily One-Time Data
@@ -131,21 +139,27 @@ export default function OwnerDashboard() {
               <Text className="text-gray-400 text-xs">Transaksi Hari Ini</Text>
             </View>
 
-            {/* Card 2: Pendapatan Hari Ini */}
-            <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
-              <Text className="text-indigo-600 text-xl font-bold">
-                Rp. {dailyStats.total_revenue.toLocaleString('id-ID')}
-              </Text>
-              <View className="mt-2 space-y-1">
-                <Text className="text-[10px] text-gray-500">
-                  Tunai: Rp {dailyStats.cash_revenue.toLocaleString('id-ID')}
+            {/* Card 2: Pendapatan Hari Ini (HIDDEN FOR CAPTAIN) */}
+            {userRole === 'owner' ? (
+              <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
+                <Text className="text-indigo-600 text-xl font-bold">
+                  Rp. {dailyStats.total_revenue.toLocaleString('id-ID')}
                 </Text>
-                <Text className="text-[10px] text-gray-500">
-                  QRIS : Rp {dailyStats.qris_revenue.toLocaleString('id-ID')}
-                </Text>
+                <View className="mt-2 space-y-1">
+                  <Text className="text-[10px] text-gray-500">
+                    Tunai: Rp {dailyStats.cash_revenue.toLocaleString('id-ID')}
+                  </Text>
+                  <Text className="text-[10px] text-gray-500">
+                    QRIS : Rp {dailyStats.qris_revenue.toLocaleString('id-ID')}
+                  </Text>
+                </View>
+                <Text className="text-gray-400 text-xs mt-2 font-medium">Pendapatan Hari ini</Text>
               </View>
-              <Text className="text-gray-400 text-xs mt-2 font-medium">Pendapatan Hari ini</Text>
-            </View>
+            ) : (
+               <View className="flex-1 p-4 rounded-xl justify-center items-center border-2 border-dashed border-gray-300/50">
+                  <Text className="text-gray-100 font-bold text-xs text-center opacity-80">Pendapatan Hidden</Text>
+               </View>
+            )}
           </View>
 
           <View className="flex-row gap-4 mb-8">
@@ -156,27 +170,38 @@ export default function OwnerDashboard() {
               <Text className="text-gray-400 text-xs ml-auto text-right w-16">Pegawai Masuk</Text>
             </View>
 
-            {/* Card 4: Pendapatan Bulan Ini (Replaces Pegawai Terlambat) */}
-            <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
-              <Text className="text-indigo-600 text-xl font-bold" numberOfLines={1}>
-                Rp. {monthlyStats.total_revenue.toLocaleString('id-ID')}
-              </Text>
-              <View className="mt-2 space-y-1">
-                <Text className="text-[10px] text-gray-500">
-                  Tunai: Rp {monthlyStats.cash_revenue.toLocaleString('id-ID')}
+            {/* Card 4: Pendapatan Bulan Ini (HIDDEN FOR CAPTAIN) */}
+            {userRole === 'owner' ? (
+              <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
+                <Text className="text-indigo-600 text-xl font-bold" numberOfLines={1}>
+                  Rp. {monthlyStats.total_revenue.toLocaleString('id-ID')}
                 </Text>
-                <Text className="text-[10px] text-gray-500">
-                  QRIS : Rp {monthlyStats.qris_revenue.toLocaleString('id-ID')}
-                </Text>
+                <View className="mt-2 space-y-1">
+                  <Text className="text-[10px] text-gray-500">
+                    Tunai: Rp {monthlyStats.cash_revenue.toLocaleString('id-ID')}
+                  </Text>
+                  <Text className="text-[10px] text-gray-500">
+                    QRIS : Rp {monthlyStats.qris_revenue.toLocaleString('id-ID')}
+                  </Text>
+                </View>
+                <Text className="text-gray-400 text-xs mt-2 font-medium">Pendapatan Bulan Ini</Text>
               </View>
-              <Text className="text-gray-400 text-xs mt-2 font-medium">Pendapatan Bulan Ini</Text>
-            </View>
+            ) : (
+                <View className="flex-1 p-4 rounded-xl justify-center items-center border-2 border-dashed border-gray-300">
+                   <Text className="text-gray-400 text-xs text-center font-medium">Pendapatan Hidden</Text>
+                </View>
+            )}
           </View>
 
           {/* 3. MENU GRID */}
           <Text className="text-gray-400 text-lg font-medium mb-4">Menu</Text>
           <View className="flex-row flex-wrap justify-between gap-y-4">
-            {MENU_ITEMS.map((item, index) => (
+            {MENU_ITEMS.filter(item => {
+                if (userRole === 'captain') {
+                    return item.name === 'Pegawai';
+                }
+                return true;
+            }).map((item, index) => (
               <TouchableOpacity
                 key={index}
                 onPress={() => {
@@ -204,35 +229,37 @@ export default function OwnerDashboard() {
             ))}
           </View>
 
-          {/* 4. RANKING MENU (Real Data) */}
-          <View className="bg-white rounded-3xl p-6 shadow-sm mt-5">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-lg font-bold text-gray-900">Ranking Menu (Bulan Ini)</Text>
-              <TouchableOpacity onPress={() => router.push('/owner/ranking')}>
-                <Text className="text-indigo-600 text-blue-500">Show all</Text>
-              </TouchableOpacity>
-            </View>
+          {/* 4. RANKING MENU (Real Data) - HIDDEN FOR CAPTAIN */}
+          {userRole === 'owner' && (
+            <View className="bg-white rounded-3xl p-6 shadow-sm mt-5">
+              <View className="flex-row justify-between items-center mb-6">
+                <Text className="text-lg font-bold text-gray-900">Ranking Menu (Bulan Ini)</Text>
+                <TouchableOpacity onPress={() => router.push('/owner/ranking')}>
+                  <Text className="text-indigo-600 text-blue-500">Show all</Text>
+                </TouchableOpacity>
+              </View>
 
-            <View className="space-y-4">
-              {monthlyStats.menu_sales.slice(0, 4).map((item, idx) => (
-                <View key={idx} className="flex-row items-center justify-between border-b border-gray-50 pb-2 last:border-0 last:pb-0">
-                  <View className="flex-row items-center space-x-3 my-2">
-                    <View className={`w-10 h-10 rounded-full bg-indigo-100 items-center justify-center mr-3`}>
-                      <Text className="font-bold text-indigo-600">{idx + 1}</Text>
+              <View className="space-y-4">
+                {monthlyStats.menu_sales.slice(0, 4).map((item, idx) => (
+                  <View key={idx} className="flex-row items-center justify-between border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                    <View className="flex-row items-center space-x-3 my-2">
+                      <View className={`w-10 h-10 rounded-full bg-indigo-100 items-center justify-center mr-3`}>
+                        <Text className="font-bold text-indigo-600">{idx + 1}</Text>
+                      </View>
+                      <View>
+                        <Text className="font-bold text-gray-900 text-sm">{item.product_name}</Text>
+                        <Text className="text-gray-400 text-xs">Rp {item.total_revenue.toLocaleString('id-ID')}</Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text className="font-bold text-gray-900 text-sm">{item.product_name}</Text>
-                      <Text className="text-gray-400 text-xs">Rp {item.total_revenue.toLocaleString('id-ID')}</Text>
-                    </View>
+                    <Text className="text-red-500 font-bold text-lg">{item.quantity_sold}</Text>
                   </View>
-                  <Text className="text-red-500 font-bold text-lg">{item.quantity_sold}</Text>
-                </View>
-              ))}
-              {monthlyStats.menu_sales.length === 0 && (
-                <Text className="text-gray-400 text-center py-4 text-xs">Belum ada transaksi bulan ini.</Text>
-              )}
+                ))}
+                {monthlyStats.menu_sales.length === 0 && (
+                  <Text className="text-gray-400 text-center py-4 text-xs">Belum ada transaksi bulan ini.</Text>
+                )}
+              </View>
             </View>
-          </View>
+          )}
         </View>
       </ScrollView>
 

@@ -11,6 +11,20 @@ interface OwnerBottomNavProps {
 export default function OwnerBottomNav({ activeMenu = 'home' }: OwnerBottomNavProps) {
     const router = useRouter();
 
+    const [userRole, setUserRole] = React.useState<'owner' | 'captain'>('owner');
+
+    React.useEffect(() => {
+        checkRole();
+    }, []);
+
+    const checkRole = async () => {
+        const { session } = await authService.getSession();
+        const email = session?.user?.email || "";
+        if (email.toLowerCase().startsWith("captain")) {
+            setUserRole('captain');
+        }
+    };
+
     const handleLogout = () => {
         Alert.alert(
             "Konfirmasi Logout",
@@ -39,13 +53,15 @@ export default function OwnerBottomNav({ activeMenu = 'home' }: OwnerBottomNavPr
                 <Text className={`text-[10px] font-bold mt-1 ${activeMenu === 'home' ? 'text-indigo-600' : 'text-gray-400'}`}>Beranda</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-                className="items-center"
-                onPress={() => router.push('/owner/history')}
-            >
-                <FileClock color={activeMenu === 'history' ? "#4f46e5" : "#9ca3af"} size={24} />
-                <Text className={`text-[10px] font-bold mt-1 ${activeMenu === 'history' ? 'text-indigo-600' : 'text-gray-400'}`}>Riwayat</Text>
-            </TouchableOpacity>
+            {userRole === 'owner' && (
+                <TouchableOpacity
+                    className="items-center"
+                    onPress={() => router.push('/owner/history')}
+                >
+                    <FileClock color={activeMenu === 'history' ? "#4f46e5" : "#9ca3af"} size={24} />
+                    <Text className={`text-[10px] font-bold mt-1 ${activeMenu === 'history' ? 'text-indigo-600' : 'text-gray-400'}`}>Riwayat</Text>
+                </TouchableOpacity>
+            )}
 
             <TouchableOpacity className="items-center" onPress={handleLogout}>
                 <LogOut color="#9ca3af" size={24} />
