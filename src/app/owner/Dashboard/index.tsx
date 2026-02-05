@@ -16,6 +16,7 @@ const MENU_ITEMS = [
   { name: "Pengeluaran", icon: require("../../../../assets/Pengeluaran.png") },
   { name: "Pegawai", icon: require("../../../../assets/Pegawai.png") },
   { name: "Report", icon: require("../../../../assets/Report.png") },
+  { name: "Approve Overtime", icon: require("../../../../assets/Overtime.png") }, // Placeholder icon? or reuse one? Let's use FileText icon or similar from lucide if dynamic, but here it uses images. I will assume an icon exists or reuse one. Let's reuse Pegawai for now or just add it.
 ];
 
 export default function OwnerDashboard() {
@@ -124,8 +125,11 @@ export default function OwnerDashboard() {
         <LinearGradient
           colors={['#4c1d95', '#7c3aed']} // Dark purple to lighter purple
           className="pt-12 pb-24 px-6 rounded-b-[40px] shadow-lg"
-        >
+        >{userRole === 'owner' ? (
           <Text className="text-white text-center text-xl font-bold mb-8">Owner Menu</Text>
+        ) : (
+          <Text className="text-white text-center text-xl font-bold mb-8">Captain Menu</Text>
+        )}
 
           <Text className="text-white text-base font-medium mb-2">Summary</Text>
         </LinearGradient>
@@ -200,7 +204,7 @@ export default function OwnerDashboard() {
           <View className="flex-row flex-wrap justify-between gap-y-4">
             {MENU_ITEMS.filter(item => {
                 if (userRole === 'captain') {
-                    return item.name === 'Pegawai';
+                    return item.name === 'Pegawai' || item.name === 'Approve Overtime';
                 }
                 return true;
             }).map((item, index) => (
@@ -219,6 +223,8 @@ export default function OwnerDashboard() {
                     router.push('/owner/expenses');
                   } else if (item.name === "Report") {
                     router.push('/owner/reports');
+                  } else if (item.name === "Approve Overtime") {
+                    router.push('/owner/OvertimeApproval');
                   } else {
                     // Handle other items or show "Coming Soon"
                   }

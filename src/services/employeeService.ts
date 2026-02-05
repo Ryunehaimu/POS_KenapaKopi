@@ -17,6 +17,8 @@ export interface AttendanceLog {
     attendance_photo_url?: string;
     late_minutes?: number;
     notes?: string;
+    overtime_minutes?: number;
+    overtime_status?: 'pending' | 'approved' | 'rejected';
     created_at: string;
 }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   LayoutDashboard,
@@ -53,68 +53,71 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
 
   return (
     <View className={`bg-white border-r border-gray-200 flex-col py-11 justify-between ${isExpanded ? 'w-64 px-4' : 'w-20 items-center'}`}>
-      <View className="space-y-6">
+      <ScrollView
+        className="flex-1 space-y-6"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
         {/* Toggle Button */}
-        <TouchableOpacity 
-            onPress={() => setIsExpanded(!isExpanded)}
-            className={`p-2 rounded-xl hover:bg-gray-100 mb-2 ${isExpanded ? 'self-end' : 'self-center'}`}
+        <TouchableOpacity
+          onPress={() => setIsExpanded(!isExpanded)}
+          className={`p-2 rounded-xl hover:bg-gray-100 mb-2 ${isExpanded ? 'self-end' : 'self-center'}`}
         >
-           <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
-           <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
-           <View className="w-6 h-0.5 bg-gray-800"></View>
+          <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
+          <View className="w-6 h-0.5 bg-gray-800 mb-1"></View>
+          <View className="w-6 h-0.5 bg-gray-800"></View>
         </TouchableOpacity>
 
         {menuItems.map((item) => {
-           const isActive = activeMenu === item.key;
-           return (
-             <TouchableOpacity 
-               key={item.key}
-               onPress={() => item.path ? router.push(item.path as any) : null}
-               className={`flex-row items-center rounded-xl ${
-                   isExpanded 
-                    ? 'px-4 my-1 py-3 space-x-3 w-full' 
-                    : 'p-3 my-1 justify-center aspect-square'
-               } ${isActive ? 'bg-indigo-600 shadow-md shadow-indigo-200' : 'hover:bg-gray-50'}`}
-             >
-               <item.icon color={isActive ? 'white' : '#4B5563'} size={24} />
-               {isExpanded && (
-                   <Text className={`font-regular text-xs ml-3 ${isActive ? 'text-white' : 'text-gray-600'}`}>
-                       {item.label}
-                   </Text>
-               )}
-             </TouchableOpacity>
-           );
+          const isActive = activeMenu === item.key;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              onPress={() => item.path ? router.push(item.path as any) : null}
+              className={`flex-row items-center rounded-xl ${isExpanded
+                ? 'px-4 my-1 py-3 space-x-3 w-full'
+                : 'p-3 my-1 justify-center aspect-square'
+                } ${isActive ? 'bg-indigo-600 shadow-md shadow-indigo-200' : 'hover:bg-gray-50'}`}
+            >
+              <item.icon color={isActive ? 'white' : '#4B5563'} size={24} />
+              {isExpanded && (
+                <Text className={`font-regular text-xs ml-3 ${isActive ? 'text-white' : 'text-gray-600'}`}>
+                  {item.label}
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
         })}
-      </View>
+      </ScrollView>
 
       <View className={`space-y-6 ${isExpanded ? 'px-4' : 'items-center'}`}>
-         {isExpanded ? (
-             <View className="flex-row space-x-3 mt-2">
-                 <View className="w-10 h-10 rounded-full bg-indigo-600 items-center mr-2 justify-center">
-                    <Text className="text-white font-bold">K</Text>
-                 </View>
-                 <View>
-                     <Text className="font-bold text-gray-900 text-xs">Kasir</Text>
-                     <Text className="text-xs text-gray-500 text-[8px] -mt-2">Active</Text>
-                 </View>
-             </View>
-         ) : (
-             <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
-                <Text className="text-white font-bold">K</Text>
-             </View>
-         )}
+        {isExpanded ? (
+          <View className="flex-row space-x-3 mt-2">
+            <View className="w-10 h-10 rounded-full bg-indigo-600 items-center mr-2 justify-center">
+              <Text className="text-white font-bold">K</Text>
+            </View>
+            <View>
+              <Text className="font-bold text-gray-900 text-xs">Kasir</Text>
+              <Text className="text-xs text-gray-500 text-[8px] -mt-2">Active</Text>
+            </View>
+          </View>
+        ) : (
+          <View className="w-10 h-10 rounded-full bg-indigo-600 items-center justify-center">
+            <Text className="text-white font-bold">K</Text>
+          </View>
+        )}
 
-         {isExpanded ? (
-             <TouchableOpacity onPress={handleLogout} className="flex-row items-center space-x-3 p-2 rounded-lg hover:bg-red-50">
-                <LogOut color="#EF4444" size={15} />
-                <Text className="text-red-500 font-bold text-xs ml-3">Keluar</Text>
-             </TouchableOpacity>
-         ) : (
-             <TouchableOpacity onPress={handleLogout} className="mb-0 mt-5">
-               <LogOut color="#EF4444" size={20} />
-             </TouchableOpacity>
-         )}
+        {isExpanded ? (
+          <TouchableOpacity onPress={handleLogout} className="flex-row items-center space-x-3 p-2 rounded-lg hover:bg-red-50">
+            <LogOut color="#EF4444" size={15} />
+            <Text className="text-red-500 font-bold text-xs ml-3">Keluar</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={handleLogout} className="mb-0 mt-5">
+            <LogOut color="#EF4444" size={20} />
+          </TouchableOpacity>
+        )}
       </View>
-    </View>
+    </View >
   );
 }

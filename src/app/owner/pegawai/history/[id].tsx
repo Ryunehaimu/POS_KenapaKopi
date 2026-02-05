@@ -398,6 +398,13 @@ export default function EmployeeHistoryScreen() {
                                                 <Text className="text-orange-600 text-[10px] font-bold">Telat {log.late_minutes}m</Text>
                                             </View>
                                         ) : null}
+
+                                        {/* Overtime Badge */}
+                                        {log.overtime_status === 'approved' && log.overtime_minutes && log.overtime_minutes > 0 ? (
+                                             <View className="bg-indigo-100 px-2 py-0.5 rounded ml-2">
+                                                <Text className="text-indigo-600 text-[10px] font-bold">Lembur {log.overtime_minutes}m</Text>
+                                            </View>
+                                        ) : null}
                                     </View>
                                     <View>
                                         <Text className="text-gray-400 text-xs">

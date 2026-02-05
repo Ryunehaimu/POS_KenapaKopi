@@ -260,7 +260,7 @@ export default function TransactionsScreen() {
             <KasirSidebar activeMenu="transactions" />
 
             <View className="flex-1">
-                <ScrollView contentContainerStyle={{ padding: 32 }}>
+                <ScrollView className='flex-1' contentContainerStyle={{ padding: 32 }}>
 
                     {/* Header & Date Filter */}
                     <View className="flex-row justify-between items-center mb-8">
