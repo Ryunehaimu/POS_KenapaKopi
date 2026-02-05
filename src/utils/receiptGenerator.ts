@@ -27,7 +27,7 @@ export const generateReceiptHtml = (order: any, items: any[], customerName: stri
                 <div style="text-align: center; margin-bottom: 20px;">
                     ${logoBase64 ? `<img src="data:image/png;base64,${logoBase64}" style="width: 250px; height: auto; margin-bottom: 10px;" />` : ''}
                     <p style="margin: 5px 0; font-size: 12px;">Jl. Kopi No. 123, Jakarta</p>
-                    <p style="margin: 5px 0; font-size: 12px;">Telp: 0812-3456-7890</p>
+                    <p style="margin: 5px 0; font-size: 12px;">Telp: 0878-3628-5577</p>
                 </div>
                 
                 <div style="margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 10px;">

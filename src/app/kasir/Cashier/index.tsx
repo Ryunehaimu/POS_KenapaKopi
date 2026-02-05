@@ -12,9 +12,7 @@ import { productService, Product } from '../../../services/productService';
 import { categoryService, Category } from '../../../services/categoryService';
 import { orderService } from '../../../services/orderService';
 import * as Print from 'expo-print';
-import { Asset } from 'expo-asset';
-// @ts-ignore
-import * as FileSystem from 'expo-file-system/legacy';
+import { RECEIPT_LOGO_BASE64 } from '../../../constants/receiptLogo';
 import { generateReceiptHtml } from '../../../utils/receiptGenerator';
 import { printerService } from '../../../services/printerService';
 
@@ -30,28 +28,7 @@ export default function CashierScreen() {
     const [cart, setCart] = useState<CartItemType[]>([]);
     const [customerName, setCustomerName] = useState('');
     const [note, setNote] = useState('');
-    const [logoBase64, setLogoBase64] = useState<string | undefined>(undefined);
-
-    useEffect(() => {
-        const loadLogo = async () => {
-            try {
-                const asset = Asset.fromModule(require('../../../../assets/splash-custom.png'));
-                await asset.downloadAsync();
-                if (asset.localUri) {
-                    const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
-                        encoding: 'base64',
-                    });
-                    setLogoBase64(base64);
-                    console.log("Logo loaded successfully, length:", base64.length);
-                } else {
-                    console.warn("Asset localUri is null");
-                }
-            } catch (error) {
-                console.warn("Failed to load receipt logo:", error);
-            }
-        };
-        loadLogo();
-    }, []);
+    // Logo is now a constant: RECEIPT_LOGO_BASE64
 
     // Payment Modal State
     const [processing, setProcessing] = useState(false);
@@ -184,7 +161,7 @@ export default function CashierScreen() {
                         customerName,
                         change || 0,
                         cashReceived || 0,
-                        logoBase64
+                        RECEIPT_LOGO_BASE64
                     );
                 } else {
                     // Fallback: Try to auto-connect to saved printer
@@ -196,7 +173,7 @@ export default function CashierScreen() {
                             customerName,
                             change || 0,
                             cashReceived || 0,
-                            logoBase64
+                            RECEIPT_LOGO_BASE64
                         );
                     } else {
                         // Ultimate fallback: use expo-print dialog
@@ -206,7 +183,7 @@ export default function CashierScreen() {
                             customerName,
                             change || 0,
                             cashReceived || 0,
-                            logoBase64
+                            RECEIPT_LOGO_BASE64
                         );
                         await Print.printAsync({ html });
                     }
@@ -221,7 +198,7 @@ export default function CashierScreen() {
                         customerName,
                         change || 0,
                         cashReceived || 0,
-                        logoBase64
+                        RECEIPT_LOGO_BASE64
                     );
                     await Print.printAsync({ html });
                 } catch (fallbackError) {
