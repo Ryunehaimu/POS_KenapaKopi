@@ -25,7 +25,13 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "package": "com.kenapakopi.pos"
     },
@@ -46,9 +52,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "27e6e6ec-a786-44eb-a08c-50290842078b"
+        "projectId": "d4037216-284f-4e7c-9021-c564be987cd8"
       }
     },
-    "owner": "ryunehaimu123"
+    "owner": "risfrhan"
   }
 }
