@@ -275,5 +275,22 @@ export const orderService = {
 
     if (error) throw error;
     return true;
-  }
+  },
+
+  async payOrder(orderId: string, paymentMethod: 'cash' | 'qris', totalAmount: number) {
+        const { data, error } = await supabase
+            .from('orders')
+            .update({
+                status: 'completed',
+                payment_method: paymentMethod,
+                total_amount: totalAmount, // Confirm amount (e.g. if price changed or for record)
+                created_at: new Date().toISOString() // Optional: Update timestamp to payment time? Or keep original? Let's keep original for now or maybe add `paid_at` column later. For now, just status update.
+            })
+            .eq('id', orderId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
 };

@@ -203,7 +203,7 @@ class PrinterService {
         customerName: string,
         change: number,
         cashReceived: number,
-
+        copyLabel: string = ''
     ): Promise<void> {
         if (!this.connectedPrinter) {
             throw new Error('No printer connected');
@@ -235,7 +235,9 @@ class PrinterService {
             receipt += '<C><B>KenapaKopi</B></C>\n';
             // receipt += '<C>Jl. Kopi No. 123, Jakarta</C>\n';
             receipt += '<C>Telp: 0878-3628-5577</C>\n';
-            receipt += `<C>${copyLabel}</C>\n`;
+            if (copyLabel) {
+                receipt += `<C>${copyLabel}</C>\n`;
+            }
             receipt += line + '\n';
 
             // Order Info
@@ -260,6 +262,14 @@ class PrinterService {
 
             receipt += line + '\n';
 
+            // Subtotal & Discount
+            if (order.discount && order.discount > 0) {
+                 const subtotal = order.total_amount + order.discount;
+                 receipt += leftRight('Subtotal', formatPrice(subtotal)) + '\n';
+                 receipt += leftRight('Diskon', `- ${formatPrice(order.discount)}`) + '\n';
+                 receipt += line + '\n';
+            }
+
             // Total
             receipt += '<B>' + leftRight('TOTAL', formatPrice(order.total_amount)) + '</B>\n';
 
@@ -282,20 +292,9 @@ class PrinterService {
         };
 
         try {
-            // Print Header "KenapaKopi"
-            await BLEPrinter.printText('<C><B>KenapaKopi</B></C>\n');
-
-            // Print Copy 1 - Customer
-            const receipt1 = generateReceipt('--- PELANGGAN ---');
-            await BLEPrinter.printText(receipt1);
-
-            // Print Header "KenapaKopi" for second copy
-            await BLEPrinter.printText('<C><B>KenapaKopi</B></C>\n');
-
-            // Print Copy 2 - Kasir/Arsip
-            const receipt2 = generateReceipt('--- KASIR/ARSIP ---');
-            await BLEPrinter.printText(receipt2);
-
+            // Print Receipt Copy
+            const receipt = generateReceipt(copyLabel);
+            await BLEPrinter.printText(receipt);
 
         } catch (error) {
 
@@ -312,17 +311,17 @@ class PrinterService {
         }
 
         const testReceipt = `
-        <C><B>TEST PRINT</B></C>
-        <C>POS KenapaKopi</C>
-        --------------------------------
-        Printer: ${this.connectedPrinter.device_name}
-        MAC: ${this.connectedPrinter.inner_mac_address}
-        Time: ${new Date().toLocaleString('id-ID')}
-        --------------------------------
-        <C>Printer Berhasil Terhubung!</C>
+<C><B>TEST PRINT</B></C>
+<C>POS KenapaKopi</C>
+--------------------------------
+Printer: ${this.connectedPrinter.device_name}
+MAC: ${this.connectedPrinter.inner_mac_address}
+Time: ${new Date().toLocaleString('id-ID')}
+--------------------------------
+<C>Printer Berhasil Terhubung!</C>
 
 
-        `;
+`;
 
         try {
             await BLEPrinter.printText(testReceipt);

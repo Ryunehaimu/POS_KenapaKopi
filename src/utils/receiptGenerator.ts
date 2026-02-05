@@ -26,7 +26,6 @@ export const generateReceiptHtml = (order: any, items: any[], customerName: stri
             <body style="font-family: 'Courier New', Courier, monospace; width: 100%; max-width: 300px; margin: 0 auto; padding: 10px;">
                 <div style="text-align: center; margin-bottom: 20px;">
                     <h1 style="margin: 0 0 10px 0; font-size: 24px; font-weight: bold;">KenapaKopi</h1>
-                    
                     <p style="margin: 5px 0; font-size: 12px;">Telp: 0878-3628-5577</p>
                 </div>
                 
@@ -42,6 +41,16 @@ export const generateReceiptHtml = (order: any, items: any[], customerName: stri
                     ${itemsHtml}
                 </div>
 
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-size: 14px;">Subtotal</span>
+                    <span style="font-size: 14px;">Rp ${(order.total_amount + (order.discount || 0)).toLocaleString()}</span>
+                </div>
+                ${(order.discount && order.discount > 0) ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 5px;">
+                    <span style="font-size: 14px;">Diskon</span>
+                    <span style="font-size: 14px;">- Rp ${order.discount.toLocaleString()}</span>
+                </div>
+                ` : ''}
                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                     <span style="font-weight: bold; font-size: 14px;">Total</span>
                     <span style="font-weight: bold; font-size: 14px;">Rp ${order.total_amount.toLocaleString()}</span>

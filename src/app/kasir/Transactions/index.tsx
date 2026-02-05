@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Calendar, CreditCard, Banknote, FileText, Coffee, Edit, Printer } from 'lucide-react-native';
+import { Calendar, CreditCard, Banknote, FileText, Coffee, Edit, Printer, Trash2 } from 'lucide-react-native';
 import KasirSidebar from '../../../components/KasirSidebar';
 import { orderService, Order } from '../../../services/orderService';
 import { printerService } from '../../../services/printerService';
@@ -9,11 +9,12 @@ import { inventoryService } from '../../../services/inventoryService';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
 import { MonthYearPicker } from '../../../components/MonthYearPicker';
+import { PaymentModal } from '../../../components/cashier/PaymentModal';
 
 export default function TransactionsScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'transactions' | 'menu_sales' | 'ingredient_usage' | 'ingredient_expense'>('transactions');
+    const [activeTab, setActiveTab] = useState<'transactions' | 'unpaid' | 'menu_sales' | 'ingredient_usage' | 'ingredient_expense'>('transactions');
     const [selectedDate, setSelectedDate] = useState(new Date()); // Defaults to today
     const [isPickerVisible, setPickerVisible] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
@@ -59,6 +60,12 @@ export default function TransactionsScreen() {
         total_expenditure: number;
     }[]>([]);
 
+    // Unpaid Orders State
+    const [unpaidOrders, setUnpaidOrders] = useState<Order[]>([]);
+    const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
+    const [selectedUnpaidOrder, setSelectedUnpaidOrder] = useState<Order | null>(null);
+    const [processingPayment, setProcessingPayment] = useState(false);
+
     const isToday = (date: Date) => {
         const today = new Date();
         return date.getDate() === today.getDate() &&
@@ -90,13 +97,14 @@ export default function TransactionsScreen() {
                 usageEnd.setHours(23, 59, 59, 999);
             }
 
-            const [stats, orders, usage, expense, todayStats] = await Promise.all([
+            const [stats, orders, usage, expense, todayStats, unpaid] = await Promise.all([
                 // Fix: Usage generic Sales Report for both Daily and Monthly
                 orderService.getSalesReport(usageStart, usageEnd),
                 orderService.getRecentOrders(usageStart, usageEnd, currentPage, 10),
                 inventoryService.getIngredientUsage(usageStart, usageEnd),
                 inventoryService.getIngredientExpenseReport(usageStart, usageEnd),
-                orderService.getDailyReport(new Date()) // Always fetch today for the widget
+                orderService.getDailyReport(new Date()), // Always fetch today for the widget
+                orderService.getRecentOrders(undefined, undefined, 1, 100, 'pending') // Fetch pending orders (All dates)
             ]);
             setDailyStats(stats);
             setRecentOrders(orders.data);
@@ -107,6 +115,7 @@ export default function TransactionsScreen() {
                 cash_revenue: todayStats.cash_revenue,
                 qris_revenue: todayStats.qris_revenue
             });
+            setUnpaidOrders(unpaid.data);
         } catch (error) {
             console.error(error);
         } finally {
@@ -151,7 +160,8 @@ export default function TransactionsScreen() {
                     formattedItems,
                     fullOrder.customer_name,
                     0,
-                    fullOrder.total_amount
+                    fullOrder.total_amount,
+                    '--- REPRINT ---'
                 );
                 Alert.alert("Sukses", "Struk berhasil dicetak ulang");
             }
@@ -160,6 +170,69 @@ export default function TransactionsScreen() {
             Alert.alert("Error", "Gagal mencetak ulang struk");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handlePayOrder = (order: Order) => {
+        setSelectedUnpaidOrder(order);
+        setPaymentModalVisible(true);
+    };
+
+    const confirmPayment = async (amount: number, method: 'cash' | 'qris', discount: number, cashReceived?: number, change?: number) => {
+        if (!selectedUnpaidOrder?.id) return;
+        try {
+            setProcessingPayment(true);
+            
+            // 1. Update Order Status
+            await orderService.payOrder(selectedUnpaidOrder.id, method, amount); // amount includes discount applied logic if handled in service/UI, usually simple update here
+            
+            // 2. Print Receipt
+            const fullOrder = await orderService.getOrderDetails(selectedUnpaidOrder.id);
+            const formattedItems = fullOrder.order_items?.map((item: any) => ({
+                    name: item.products?.name || 'Unknown Item',
+                    price: item.price,
+                    quantity: item.quantity,
+                    note: item.note
+                })) || [];
+
+             await printerService.printReceipt(
+                { ...fullOrder, payment_method: method, discount },
+                formattedItems,
+                fullOrder.customer_name,
+                change || 0,
+                cashReceived || 0,
+                ''
+            );
+
+            Alert.alert("Sukses", "Pembayaran berhasil dicatat", [
+                {
+                    text: "OK",
+                    onPress: async () => {
+                        try {
+                            // Print Second Copy (Store/Archive)
+                             await printerService.printReceipt(
+                                { ...fullOrder, payment_method: method, discount },
+                                formattedItems,
+                                fullOrder.customer_name,
+                                change || 0,
+                                cashReceived || 0,
+                                '--- KASIR/ARSIP ---'
+                            );
+                        } catch (e) {
+                            console.error("Failed to print second copy", e);
+                        }
+                    }
+                }
+            ]);
+            
+            setPaymentModalVisible(false);
+            loadData(); // Refresh lists
+        } catch (e) {
+            console.error("Pay error", e);
+            Alert.alert("Error", "Gagal memproses pembayaran");
+        } finally {
+            setProcessingPayment(false);
+            setSelectedUnpaidOrder(null);
         }
     };
 
@@ -234,6 +307,20 @@ export default function TransactionsScreen() {
                         >
                             <Text className={`text-lg font-bold ${activeTab === 'transactions' ? 'text-indigo-600' : 'text-gray-400'}`}>Riwayat Transaksi</Text>
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => setActiveTab('unpaid')}
+                            className={`mr-8 pb-4 ${activeTab === 'unpaid' ? 'border-b-2 border-orange-500' : ''}`}
+                        >
+                             <View className="flex-row items-center gap-2">
+                                <Text className={`text-lg font-bold ${activeTab === 'unpaid' ? 'text-orange-500' : 'text-gray-400'}`}>Belum Bayar</Text>
+                                {unpaidOrders.length > 0 && (
+                                    <View className="bg-orange-500 px-2 py-0.5 rounded-full">
+                                        <Text className="text-white text-xs font-bold">{unpaidOrders.length}</Text>
+                                    </View>
+                                )}
+                            </View>
+                        </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => setActiveTab('menu_sales')}
                             className={`mr-8 pb-4 ${activeTab === 'menu_sales' ? 'border-b-2 border-indigo-600' : ''}`}
@@ -268,7 +355,7 @@ export default function TransactionsScreen() {
                                     {activeTab === 'transactions' && (
                                         <View>
                                             <View className="flex-row py-4 border-b border-gray-100 mb-2">
-                                                <Text className="flex-1 text-gray-500 font-bold">Waktu</Text>
+                                                <Text className="flex-[1.5] text-gray-500 font-bold">Waktu</Text>
                                                 <Text className="flex-[2] text-gray-500 font-bold">Pelanggan</Text>
                                                 <Text className="flex-1 text-gray-500 font-bold">Metode</Text>
                                                 <Text className="flex-1 text-gray-500 font-bold text-right">Total</Text>
@@ -277,14 +364,19 @@ export default function TransactionsScreen() {
                                             </View>
                                             {recentOrders.map((order, idx) => (
                                                 <View key={idx} className="flex-row py-4 border-b border-gray-50 hover:bg-gray-50 items-center">
-                                                    <Text className="flex-1 text-gray-900">
-                                                        {order.created_at ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                                    </Text>
+                                                    <View className="flex-[1.5]">
+                                                        <Text className="text-gray-900 font-medium">
+                                                            {order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
+                                                        </Text>
+                                                        <Text className="text-gray-500 text-xs">
+                                                            {order.created_at ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                        </Text>
+                                                    </View>
                                                     <Text className="flex-[2] text-gray-800 font-medium">{order.customer_name}</Text>
                                                     <View className="flex-1">
-                                                        <View className={`px-2 py-1 rounded text-xs font-bold ${order.payment_method === 'qris' ? 'bg-blue-100' : 'bg-green-100'} self-start`}>
-                                                            <Text className={`${order.payment_method === 'qris' ? 'text-blue-700' : 'text-green-700'}`}>
-                                                                {order.payment_method?.toUpperCase()}
+                                                        <View className={`px-2 py-1 rounded text-xs font-bold ${order.payment_method === 'qris' ? 'bg-blue-100' : order.payment_method === 'cash' ? 'bg-green-100' : 'bg-gray-100'} self-start`}>
+                                                            <Text className={`${order.payment_method === 'qris' ? 'text-blue-700' : order.payment_method === 'cash' ? 'text-green-700' : 'text-gray-500'}`}>
+                                                                {order.payment_method ? order.payment_method.toUpperCase() : '-'}
                                                             </Text>
                                                         </View>
                                                     </View>
@@ -298,7 +390,7 @@ export default function TransactionsScreen() {
                                                                 : order.status === 'pending' ? 'text-yellow-800'
                                                                     : 'text-red-800'
                                                                 }`}>
-                                                                {order.status}
+                                                                {order.status === 'pending' ? 'Belum Bayar' : order.status}
                                                             </Text>
                                                         </View>
                                                     </View>
@@ -342,6 +434,83 @@ export default function TransactionsScreen() {
                                                     </TouchableOpacity>
                                                 </View>
                                             </View>
+                                        </View>
+                                    )}
+
+                                     {activeTab === 'unpaid' && (
+                                        <View>
+                                             <View className="flex-row py-4 border-b border-gray-100 mb-2 bg-orange-50 px-4 rounded-t-xl">
+                                                <Text className="flex-[1.5] text-gray-500 font-bold">Waktu</Text>
+                                                <Text className="flex-[2] text-gray-500 font-bold">Pelanggan</Text>
+                                                <Text className="flex-[1.5] text-gray-500 font-bold text-right pr-4">Total</Text>
+                                                <Text className="w-32 text-gray-500 font-bold text-center">Aksi</Text>
+                                            </View>
+                                            {unpaidOrders.map((order, idx) => (
+                                                <View key={idx} className="flex-row py-4 border-b border-gray-50 hover:bg-gray-50 items-center px-4">
+                                                    <View className="flex-[1.5]">
+                                                        <Text className="text-gray-900 font-medium">
+                                                            {order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
+                                                        </Text>
+                                                        <Text className="text-gray-500 text-xs">
+                                                            {order.created_at ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                        </Text>
+                                                    </View>
+                                                    <Text className="flex-[2] text-gray-800 font-medium">{order.customer_name}</Text>
+                                                    <Text className="flex-[1.5] text-gray-900 font-bold text-right pr-4">Rp {order.total_amount.toLocaleString()}</Text>
+                                                    <View className="w-32 items-center flex-row justify-center gap-2">
+                                                        <TouchableOpacity
+                                                            onPress={() => router.push(`/kasir/Transactions/edit/${order.id}`)}
+                                                            className="bg-indigo-100 p-2 rounded-lg"
+                                                        >
+                                                            <Edit size={16} color="#4f46e5" />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            onPress={() => {
+                                                                Alert.alert(
+                                                                    "Hapus Transaksi",
+                                                                    "Apakah Anda yakin ingin menghapus transaksi ini? Stok akan dikembalikan.",
+                                                                    [
+                                                                        { text: "Batal", style: "cancel" },
+                                                                        {
+                                                                            text: "Hapus",
+                                                                            style: "destructive",
+                                                                            onPress: async () => {
+                                                                                try {
+                                                                                    if (order.id) {
+                                                                                        // Restore stock first
+                                                                                        await orderService.restoreOrderStock(order.id);
+                                                                                        // Then delete
+                                                                                        await orderService.deleteOrder(order.id);
+                                                                                        loadData();
+                                                                                        Alert.alert("Sukses", "Transaksi dihapus dan stok dikembalikan");
+                                                                                    }
+                                                                                } catch (error) {
+                                                                                    console.error("Delete error", error);
+                                                                                    Alert.alert("Error", "Gagal menghapus transaksi");
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    ]
+                                                                );
+                                                            }}
+                                                            className="bg-red-100 p-2 rounded-lg"
+                                                        >
+                                                            <Trash2 size={16} color="#ef4444" />
+                                                        </TouchableOpacity>
+                                                       <TouchableOpacity
+                                                            onPress={() => handlePayOrder(order)}
+                                                            className="bg-indigo-600 p-2 rounded-lg shadow-sm shadow-indigo-200"
+                                                        >
+                                                            <CreditCard size={16} color="white" />
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                </View>
+                                            ))}
+                                            {unpaidOrders.length === 0 && (
+                                                <View className="py-12 items-center">
+                                                     <Text className="text-gray-400">Tidak ada transaksi yang belum dibayar.</Text>
+                                                </View>
+                                            )}
                                         </View>
                                     )}
 
@@ -430,6 +599,14 @@ export default function TransactionsScreen() {
                 onClose={() => setPickerVisible(false)}
                 onSelect={(date) => { setSelectedDate(date); setCurrentPage(1); }}
                 selectedDate={selectedDate}
+            />
+
+            <PaymentModal
+                visible={isPaymentModalVisible}
+                onClose={() => setPaymentModalVisible(false)}
+                subtotal={selectedUnpaidOrder?.total_amount || 0}
+                onConfirm={confirmPayment}
+                loading={processingPayment}
             />
         </View>
     );

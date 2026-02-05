@@ -150,32 +150,34 @@ export default function CashierScreen() {
 
             setPaymentModalVisible(false);
 
-            // Auto-Print Receipt
+            // Auto-Print Receipt (COPY 1 - CUSTOMER)
             try {
                 // Try Bluetooth thermal printer first
                 if (printerService.isConnected()) {
                     await printerService.printReceipt(
-                        { ...orderData, payment_method: paymentMethod, note },
+                        { ...orderData, payment_method: paymentMethod, note, discount },
                         cart,
                         customerName,
                         change || 0,
-                        cashReceived || 0
+                        cashReceived || 0,
+                        ''
                     );
                 } else {
                     // Fallback: Try to auto-connect to saved printer
                     const autoConnected = await printerService.autoConnect();
                     if (autoConnected) {
                         await printerService.printReceipt(
-                            { ...orderData, payment_method: paymentMethod, note },
+                            { ...orderData, payment_method: paymentMethod, note, discount },
                             cart,
                             customerName,
                             change || 0,
-                            cashReceived || 0
+                            cashReceived || 0,
+                            ''
                         );
                     } else {
                         // Ultimate fallback: use expo-print dialog
                         const html = generateReceiptHtml(
-                            { ...orderData, payment_method: paymentMethod, note },
+                            { ...orderData, payment_method: paymentMethod, note, discount },
                             cart,
                             customerName,
                             change || 0,
@@ -189,7 +191,7 @@ export default function CashierScreen() {
                 // Fallback to expo-print on error
                 try {
                     const html = generateReceiptHtml(
-                        { ...orderData, payment_method: paymentMethod, note },
+                        { ...orderData, payment_method: paymentMethod, note, discount },
                         cart,
                         customerName,
                         change || 0,
@@ -204,7 +206,36 @@ export default function CashierScreen() {
             Alert.alert("Sukses", `Transaksi Berhasil!\nKembalian: Rp ${(change || 0).toLocaleString()}`, [
                 {
                     text: "OK",
-                    onPress: () => {
+                    onPress: async () => {
+                        // PRINT COPY 2 - STORE/ARCHIVE
+                        try {
+                            if (printerService.isConnected()) {
+                                await printerService.printReceipt(
+                                    { ...orderData, payment_method: paymentMethod, note },
+                                    cart,
+                                    customerName,
+                                    change || 0,
+                                    cashReceived || 0,
+                                    '--- KASIR/ARSIP ---'
+                                );
+                            } else {
+                                const autoConnected = await printerService.autoConnect();
+                                if (autoConnected) {
+                                    await printerService.printReceipt(
+                                        { ...orderData, payment_method: paymentMethod, note },
+                                        cart,
+                                        customerName,
+                                        change || 0,
+                                        cashReceived || 0,
+                                        '--- KASIR/ARSIP ---'
+                                    );
+                                }
+                            }
+                        } catch (e) {
+                            console.log("Failed to print second copy", e);
+                            // Silent fail for second copy or show toast
+                        }
+
                         setCart([]);
                         setCustomerName('');
                         setNote('');
@@ -343,20 +374,80 @@ export default function CashierScreen() {
                                 <Text className="text-indigo-600 text-xl font-bold">Rp {total.toLocaleString()}</Text>
                             </View>
 
-                            <TouchableOpacity
-                                onPress={handleOpenPayment}
-                                disabled={processing || cart.length === 0}
-                                className={`bg-indigo-600 py-4 rounded-xl flex-row justify-center items-center shadow-lg shadow-indigo-200 ${processing || cart.length === 0 ? 'opacity-50' : ''}`}
-                            >
-                                {processing ? (
-                                    <ActivityIndicator color="white" />
-                                ) : (
-                                    <>
-                                        <Ticket color="white" size={20} className="mr-2" />
-                                        <Text className="text-white font-bold text-lg">Process Payment</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
+                            <View className="flex-col gap-3">
+                                <TouchableOpacity
+                                    onPress={async () => {
+                                        if (cart.length === 0) {
+                                            Alert.alert("Error", "Keranjang kosong");
+                                            return;
+                                        }
+                                        if (!customerName.trim()) {
+                                            Alert.alert("Validasi", "Masukkan nama pelanggan");
+                                            return;
+                                        }
+                                        
+                                        Alert.alert("Konfirmasi", "Simpan transaksi sebagai 'Bayar Nanti'?", [
+                                            { text: "Batal", style: "cancel" },
+                                            {
+                                                text: "Ya, Simpan",
+                                                onPress: async () => {
+                                                    try {
+                                                        setProcessing(true);
+                                                        const orderItems = cart.map(item => ({
+                                                            product_id: item.id,
+                                                            quantity: item.quantity,
+                                                            price: item.price,
+                                                            subtotal: item.price * item.quantity,
+                                                            note: item.note
+                                                        }));
+
+                                                        const orderData = await orderService.createOrder({
+                                                            customer_name: customerName,
+                                                            total_amount: total,
+                                                            status: 'pending',
+                                                            payment_method: 'cash', // Placeholder, creates as 'cash' officially but status pending
+                                                            note: note
+                                                        }, orderItems);
+
+                                                        if (orderData?.id) {
+                                                            orderService.processStockDeduction(orderData.id);
+                                                        }
+
+                                                        Alert.alert("Sukses", "Transaksi disimpan (Belum Dibayar)");
+                                                        setCart([]);
+                                                        setCustomerName('');
+                                                        setNote('');
+                                                    } catch (error) {
+                                                        console.error(error);
+                                                        Alert.alert("Error", "Gagal menyimpan transaksi");
+                                                    } finally {
+                                                        setProcessing(false);
+                                                    }
+                                                }
+                                            }
+                                        ]);
+                                    }}
+                                    disabled={processing || cart.length === 0}
+                                    className={`w-full bg-orange-100 py-4 rounded-xl flex-row justify-center items-center ${processing || cart.length === 0 ? 'opacity-50' : ''}`}
+                                >
+                                    <Text className="text-orange-700 font-bold text-lg">Bayar Nanti</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={handleOpenPayment}
+                                    disabled={processing || cart.length === 0}
+                                    className={`w-full bg-indigo-600 py-4 rounded-xl flex-row justify-center items-center shadow-lg shadow-indigo-200 ${processing || cart.length === 0 ? 'opacity-50' : ''}`}
+                                >
+                                    {processing ? (
+                                        <ActivityIndicator color="white" />
+                                    ) : (
+                                        <>
+                                            <Ticket color="white" size={20} className="mr-2" />
+                                            <Text className="text-white font-bold text-lg">Process Payment</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </KeyboardAwareScrollView>
                 </View>

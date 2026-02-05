@@ -164,10 +164,12 @@ export default function OwnerDashboard() {
 
           <View className="flex-row gap-4 mb-8">
             {/* Card 3: Pegawai Masuk */}
-            <View className="flex-1 bg-white p-4 rounded-xl shadow-sm flex-row items-center gap-1">
-              <Text className="text-indigo-600 text-2xl font-bold">{attendanceCount}</Text>
-              <Text className="text-gray-300 text-xl font-medium">/{totalEmployees}</Text>
-              <Text className="text-gray-400 text-xs ml-auto text-right w-16">Pegawai Masuk</Text>
+            <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
+              <Text className="text-indigo-600 text-2xl font-bold">
+                {attendanceCount}
+                <Text className="text-gray-300 text-sm font-medium"> /{totalEmployees}</Text>
+              </Text>
+              <Text className="text-gray-400 text-xs mt-1">Pegawai Masuk</Text>
             </View>
 
             {/* Card 4: Pendapatan Bulan Ini (HIDDEN FOR CAPTAIN) */}
