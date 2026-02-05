@@ -2,15 +2,18 @@
 import { Order } from '../services/orderService';
 import { CartItemType } from '../components/cashier/CartItem'; // Adjust import if needed or redefine
 
-export const generateReceiptHtml = (order: any, items: any[], customerName: string, change: number, cashReceived: number) => {
+export const generateReceiptHtml = (order: any, items: any[], customerName: string, change: number, cashReceived: number, logoBase64?: string) => {
     const date = new Date().toLocaleString('id-ID');
 
     let itemsHtml = '';
     items.forEach(item => {
         itemsHtml += `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                <span style="flex: 2; font-size: 12px;">${item.name} x${item.quantity}</span>
-                <span style="flex: 1; text-align: right; font-size: 12px;">Rp ${(item.price * item.quantity).toLocaleString()}</span>
+            <div style="margin-bottom: 5px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="flex: 2; font-size: 12px;">${item.name} x${item.quantity}</span>
+                    <span style="flex: 1; text-align: right; font-size: 12px;">Rp ${(item.price * item.quantity).toLocaleString()}</span>
+                </div>
+                ${item.note ? `<div style="font-size: 11px; color: #555; font-style: italic; margin-left: 10px;">- ${item.note}</div>` : ''}
             </div>
         `;
     });
@@ -22,7 +25,7 @@ export const generateReceiptHtml = (order: any, items: any[], customerName: stri
             </head>
             <body style="font-family: 'Courier New', Courier, monospace; width: 100%; max-width: 300px; margin: 0 auto; padding: 10px;">
                 <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">POS KenapaKopi</h2>
+                    ${logoBase64 ? `<img src="data:image/png;base64,${logoBase64}" style="width: 250px; height: auto; margin-bottom: 10px;" />` : ''}
                     <p style="margin: 5px 0; font-size: 12px;">Jl. Kopi No. 123, Jakarta</p>
                     <p style="margin: 5px 0; font-size: 12px;">Telp: 0812-3456-7890</p>
                 </div>
@@ -32,6 +35,7 @@ export const generateReceiptHtml = (order: any, items: any[], customerName: stri
                     <p style="margin: 2px 0; font-size: 12px;">Tgl: ${date}</p>
                     <p style="margin: 2px 0; font-size: 12px;">Kasir: Admin</p>
                     <p style="margin: 2px 0; font-size: 12px;">Pelanggan: ${customerName}</p>
+                    ${order.note ? `<p style="margin: 2px 0; font-size: 12px;">Catatan: ${order.note}</p>` : ''}
                 </div>
 
                 <div style="margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 10px;">

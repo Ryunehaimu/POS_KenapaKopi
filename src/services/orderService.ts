@@ -7,6 +7,7 @@ export interface OrderItem {
   quantity: number;
   price: number;
   subtotal: number;
+  note?: string; // Added note support
   product_name?: string; // Helper for UI
 }
 
@@ -14,6 +15,7 @@ export interface Order {
   id?: string;
   order_number?: string;
   customer_name: string;
+  note?: string;
   total_amount: number;
   status: 'pending' | 'completed' | 'cancelled';
   payment_method: 'cash' | 'qris';
@@ -28,6 +30,7 @@ export const orderService = {
       .from('orders')
       .insert([{
         customer_name: order.customer_name,
+        note: order.note,
         total_amount: order.total_amount,
         status: order.status,
         payment_method: order.payment_method
@@ -43,7 +46,8 @@ export const orderService = {
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.price,
-      subtotal: item.subtotal
+      subtotal: item.subtotal,
+      note: item.note // Save item note
     }));
 
     const { error: itemsError } = await supabase
@@ -198,6 +202,7 @@ export const orderService = {
     orderId: string,
     updates: {
       customer_name?: string;
+      note?: string;
       payment_method?: 'cash' | 'qris';
       status?: 'pending' | 'completed' | 'cancelled';
       total_amount?: number;
@@ -209,6 +214,7 @@ export const orderService = {
       .from('orders')
       .update({
         customer_name: updates.customer_name,
+        note: updates.note,
         payment_method: updates.payment_method,
         status: updates.status,
         total_amount: updates.total_amount
@@ -230,7 +236,8 @@ export const orderService = {
         product_id: item.product_id,
         quantity: item.quantity,
         price: item.price,
-        subtotal: item.subtotal
+        subtotal: item.subtotal,
+        note: item.note // Save item note
       }));
 
       const { error: itemsError } = await supabase

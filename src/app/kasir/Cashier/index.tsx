@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, FlatList, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, FlatList, Alert, ActivityIndicator, Platform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
 import { Search, ShoppingCart, User, Ticket } from 'lucide-react-native';
 import KasirSidebar from '../../../components/KasirSidebar';
@@ -11,6 +12,9 @@ import { productService, Product } from '../../../services/productService';
 import { categoryService, Category } from '../../../services/categoryService';
 import { orderService } from '../../../services/orderService';
 import * as Print from 'expo-print';
+import { Asset } from 'expo-asset';
+// @ts-ignore
+import * as FileSystem from 'expo-file-system/legacy';
 import { generateReceiptHtml } from '../../../utils/receiptGenerator';
 import { printerService } from '../../../services/printerService';
 
@@ -25,6 +29,29 @@ export default function CashierScreen() {
     // Cart State
     const [cart, setCart] = useState<CartItemType[]>([]);
     const [customerName, setCustomerName] = useState('');
+    const [note, setNote] = useState('');
+    const [logoBase64, setLogoBase64] = useState<string | undefined>(undefined);
+
+    useEffect(() => {
+        const loadLogo = async () => {
+            try {
+                const asset = Asset.fromModule(require('../../../../assets/splash-custom.png'));
+                await asset.downloadAsync();
+                if (asset.localUri) {
+                    const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
+                        encoding: 'base64',
+                    });
+                    setLogoBase64(base64);
+                    console.log("Logo loaded successfully, length:", base64.length);
+                } else {
+                    console.warn("Asset localUri is null");
+                }
+            } catch (error) {
+                console.warn("Failed to load receipt logo:", error);
+            }
+        };
+        loadLogo();
+    }, []);
 
     // Payment Modal State
     const [processing, setProcessing] = useState(false);
@@ -93,6 +120,15 @@ export default function CashierScreen() {
         setCart(prev => prev.filter(item => item.id !== id));
     };
 
+    const updateNote = (id: string, note: string) => {
+        setCart(prev => prev.map(item => {
+            if (item.id === id) {
+                return { ...item, note };
+            }
+            return item;
+        }));
+    };
+
     const handleOpenPayment = () => {
         if (cart.length === 0) {
             Alert.alert("Error", "Keranjang kosong");
@@ -118,7 +154,8 @@ export default function CashierScreen() {
                 product_id: item.id,
                 quantity: item.quantity,
                 price: item.price,
-                subtotal: item.price * item.quantity
+                subtotal: item.price * item.quantity,
+                note: item.note // Pass item note
                 // Note: Item subtotal is pre-discount. Discount is applied to Order.
             }));
 
@@ -127,6 +164,7 @@ export default function CashierScreen() {
                 total_amount: finalAmount,
                 status: 'completed',
                 payment_method: paymentMethod,
+                note: note // Pass the note
             }, orderItems);
 
             // Trigger Stock Deduction (Async, don't block UI success)
@@ -141,31 +179,34 @@ export default function CashierScreen() {
                 // Try Bluetooth thermal printer first
                 if (printerService.isConnected()) {
                     await printerService.printReceipt(
-                        { ...orderData, payment_method: paymentMethod },
+                        { ...orderData, payment_method: paymentMethod, note },
                         cart,
                         customerName,
                         change || 0,
-                        cashReceived || 0
+                        cashReceived || 0,
+                        logoBase64
                     );
                 } else {
                     // Fallback: Try to auto-connect to saved printer
                     const autoConnected = await printerService.autoConnect();
                     if (autoConnected) {
                         await printerService.printReceipt(
-                            { ...orderData, payment_method: paymentMethod },
+                            { ...orderData, payment_method: paymentMethod, note },
                             cart,
                             customerName,
                             change || 0,
-                            cashReceived || 0
+                            cashReceived || 0,
+                            logoBase64
                         );
                     } else {
                         // Ultimate fallback: use expo-print dialog
                         const html = generateReceiptHtml(
-                            { ...orderData, payment_method: paymentMethod },
+                            { ...orderData, payment_method: paymentMethod, note },
                             cart,
                             customerName,
                             change || 0,
-                            cashReceived || 0
+                            cashReceived || 0,
+                            logoBase64
                         );
                         await Print.printAsync({ html });
                     }
@@ -175,11 +216,12 @@ export default function CashierScreen() {
                 // Fallback to expo-print on error
                 try {
                     const html = generateReceiptHtml(
-                        { ...orderData, payment_method: paymentMethod },
+                        { ...orderData, payment_method: paymentMethod, note },
                         cart,
                         customerName,
                         change || 0,
-                        cashReceived || 0
+                        cashReceived || 0,
+                        logoBase64
                     );
                     await Print.printAsync({ html });
                 } catch (fallbackError) {
@@ -193,6 +235,7 @@ export default function CashierScreen() {
                     onPress: () => {
                         setCart([]);
                         setCustomerName('');
+                        setNote('');
                     }
                 }
             ]);
@@ -261,78 +304,89 @@ export default function CashierScreen() {
                 </View>
 
                 {/* RIGHT PANEL: Cart & Checkout */}
-                <View className="w-[380px] bg-white border-l border-gray-100 p-6 shadow-sm flex-col h-full">
-                    <Text className="text-xl font-bold text-gray-900 mb-6">Order Details</Text>
+                <View className="w-[380px] bg-white border-l border-gray-100 shadow-sm flex-col h-full">
+                    <KeyboardAwareScrollView
+                        enableOnAndroid={true}
+                        extraScrollHeight={100}
+                        contentContainerStyle={{ padding: 24, flexGrow: 1 }}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <Text className="text-xl font-bold text-gray-900 mb-6">Order Details</Text>
 
-                    {/* Customer Info */}
-                    <View className="mb-6">
-                        <Text className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Customer Name</Text>
-                        <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-                            <User size={18} color="#6B7280" />
-                            <TextInput
-                                placeholder="Nama Pelanggan / Meja"
-                                value={customerName}
-                                onChangeText={setCustomerName}
-                                className="flex-1 ml-3 text-gray-900 font-medium"
-                            />
-                        </View>
-                    </View>
-
-                    {/* Cart Items */}
-                    <Text className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Current Order</Text>
-                    <View className="flex-1 bg-gray-50 rounded-2xl p-2 mb-4">
-                        {cart.length === 0 ? (
-                            <View className="flex-1 items-center justify-center">
-                                <ShoppingCart size={48} color="#D1D5DB" />
-                                <Text className="text-gray-400 mt-2 font-medium">Keranjang Kosong</Text>
+                        {/* Customer Info */}
+                        <View className="mb-6">
+                            <Text className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Customer Name</Text>
+                            <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                                <User size={18} color="#6B7280" />
+                                <TextInput
+                                    placeholder="Nama Pelanggan / Meja"
+                                    value={customerName}
+                                    onChangeText={setCustomerName}
+                                    className="flex-1 ml-3 text-gray-900 font-medium"
+                                />
                             </View>
-                        ) : (
-                            <FlatList
-                                data={cart}
-                                keyExtractor={item => item.id}
-                                renderItem={({ item }) => (
-                                    <CartItem
-                                        item={item}
-                                        onUpdateQuantity={updateQuantity}
-                                        onRemove={removeFromCart}
-                                    />
-                                )}
-                                showsVerticalScrollIndicator={false}
-                            />
-                        )}
-                    </View>
-
-                    {/* Summary & Checkout */}
-                    <View className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <View className="flex-row justify-between mb-2">
-                            <Text className="text-gray-500 font-medium">Subtotal</Text>
-                            <Text className="text-gray-900 font-bold">Rp {subtotal.toLocaleString()}</Text>
-                        </View>
-                        <View className="flex-row justify-between mb-4 pb-4 border-b border-gray-200 border-dashed">
-                            <Text className="text-gray-500 font-medium">Diskon</Text>
-                            <Text className="text-gray-900 font-bold">-</Text>
                         </View>
 
-                        <View className="flex-row justify-between items-center mb-6">
-                            <Text className="text-gray-800 text-lg font-bold">Total</Text>
-                            <Text className="text-indigo-600 text-xl font-bold">Rp {total.toLocaleString()}</Text>
+                        {/* Global Note Input */}
+                        <View className="mb-6">
+                            <Text className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Catatan Umum</Text>
+                            <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                                <TextInput
+                                    placeholder="Tambah catatan transaksi..."
+                                    value={note}
+                                    onChangeText={setNote}
+                                    className="flex-1 text-gray-900 font-medium"
+                                />
+                            </View>
                         </View>
 
-                        <TouchableOpacity
-                            onPress={handleOpenPayment}
-                            disabled={processing || cart.length === 0}
-                            className={`bg-indigo-600 py-4 rounded-xl flex-row justify-center items-center shadow-lg shadow-indigo-200 ${processing || cart.length === 0 ? 'opacity-50' : ''}`}
-                        >
-                            {processing ? (
-                                <ActivityIndicator color="white" />
+                        {/* Cart Items */}
+                        <Text className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Current Order</Text>
+                        <View className="bg-gray-50 rounded-2xl p-2 mb-4 min-h-[200px]">
+                            {cart.length === 0 ? (
+                                <View className="h-48 items-center justify-center">
+                                    <ShoppingCart size={48} color="#D1D5DB" />
+                                    <Text className="text-gray-400 mt-2 font-medium">Keranjang Kosong</Text>
+                                </View>
                             ) : (
-                                <>
-                                    <Ticket color="white" size={20} className="mr-2" />
-                                    <Text className="text-white font-bold text-lg">Process Payment</Text>
-                                </>
+                                <View>
+                                    {cart.map(item => (
+                                        <CartItem
+                                            key={item.id}
+                                            item={item}
+                                            onUpdateQuantity={updateQuantity}
+                                            onRemove={removeFromCart}
+                                            onUpdateNote={updateNote}
+                                        />
+                                    ))}
+                                </View>
                             )}
-                        </TouchableOpacity>
-                    </View>
+                        </View>
+
+                        {/* Summary & Checkout */}
+                        <View className="bg-gray-50 p-4 rounded-2xl border border-gray-100 mt-auto">
+                            <View className="flex-row justify-between items-center mb-6">
+                                <Text className="text-gray-800 text-lg font-bold">Total</Text>
+                                <Text className="text-indigo-600 text-xl font-bold">Rp {total.toLocaleString()}</Text>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={handleOpenPayment}
+                                disabled={processing || cart.length === 0}
+                                className={`bg-indigo-600 py-4 rounded-xl flex-row justify-center items-center shadow-lg shadow-indigo-200 ${processing || cart.length === 0 ? 'opacity-50' : ''}`}
+                            >
+                                {processing ? (
+                                    <ActivityIndicator color="white" />
+                                ) : (
+                                    <>
+                                        <Ticket color="white" size={20} className="mr-2" />
+                                        <Text className="text-white font-bold text-lg">Process Payment</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </KeyboardAwareScrollView>
                 </View>
 
             </View>
@@ -345,6 +399,6 @@ export default function CashierScreen() {
                 onConfirm={handleConfirmPayment}
                 loading={processing}
             />
-        </View>
+        </View >
     );
 }

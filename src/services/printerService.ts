@@ -18,13 +18,13 @@ class PrinterService {
      */
     async init(): Promise<void> {
         if (this.isInitialized) return;
-        
+
         try {
             await BLEPrinter.init();
             this.isInitialized = true;
-            
+
         } catch (error) {
-            
+
             throw error;
         }
     }
@@ -47,12 +47,12 @@ class PrinterService {
             );
 
             if (!allGranted) {
-                
+
             }
 
             return allGranted;
         } catch (error) {
-            
+
             return false;
         }
     }
@@ -64,16 +64,16 @@ class PrinterService {
         try {
             await this.init();
             const hasPermission = await this.requestPermissions();
-            
+
             if (!hasPermission) {
                 throw new Error('Bluetooth permissions not granted');
             }
 
             const devices = await BLEPrinter.getDeviceList();
-            
+
             return devices as PrinterDevice[];
         } catch (error) {
-            
+
             throw error;
         }
     }
@@ -85,11 +85,11 @@ class PrinterService {
         try {
             await this.init();
             await BLEPrinter.connectPrinter(macAddress);
-            
+
             // Find the device info from the address
             const devices = await BLEPrinter.getDeviceList();
             const device = devices.find((d: any) => d.inner_mac_address === macAddress);
-            
+
             this.connectedPrinter = device ? {
                 device_name: device.device_name,
                 inner_mac_address: macAddress
@@ -97,10 +97,10 @@ class PrinterService {
                 device_name: 'Unknown Printer',
                 inner_mac_address: macAddress
             };
-            
-            
+
+
         } catch (error) {
-            
+
             this.connectedPrinter = null;
             throw error;
         }
@@ -113,9 +113,9 @@ class PrinterService {
         try {
             await BLEPrinter.closeConn();
             this.connectedPrinter = null;
-            
+
         } catch (error) {
-            
+
         }
     }
 
@@ -139,9 +139,9 @@ class PrinterService {
     async saveDefaultPrinter(device: PrinterDevice): Promise<void> {
         try {
             await AsyncStorage.setItem(PRINTER_STORAGE_KEY, JSON.stringify(device));
-            
+
         } catch (error) {
-            
+
         }
     }
 
@@ -156,7 +156,7 @@ class PrinterService {
             }
             return null;
         } catch (error) {
-            
+
             return null;
         }
     }
@@ -173,7 +173,7 @@ class PrinterService {
             }
             return false;
         } catch (error) {
-            
+
             return false;
         }
     }
@@ -189,7 +189,7 @@ class PrinterService {
         try {
             await BLEPrinter.printText(text);
         } catch (error) {
-            
+
             throw error;
         }
     }
@@ -202,7 +202,8 @@ class PrinterService {
         items: any[],
         customerName: string,
         change: number,
-        cashReceived: number
+        cashReceived: number,
+        logoBase64?: string
     ): Promise<void> {
         if (!this.connectedPrinter) {
             throw new Error('No printer connected');
@@ -220,7 +221,7 @@ class PrinterService {
         const doubleLine = '='.repeat(LINE_WIDTH);
 
         const formatPrice = (price: number) => `Rp ${price.toLocaleString('id-ID')}`;
-        
+
         const leftRight = (left: string, right: string) => {
             const spaces = Math.max(1, LINE_WIDTH - left.length - right.length);
             return left + ' '.repeat(spaces) + right;
@@ -229,33 +230,39 @@ class PrinterService {
         // Generate receipt content for one copy
         const generateReceipt = (copyLabel: string) => {
             let receipt = '';
-            
+
             // Header
             receipt += '<C><B>POS KenapaKopi</B></C>\n';
             receipt += '<C>Jl. Kopi No. 123, Jakarta</C>\n';
             receipt += '<C>Telp: 0812-3456-7890</C>\n';
             receipt += `<C>${copyLabel}</C>\n`;
             receipt += line + '\n';
-            
+
             // Order Info
             receipt += `No: ${order.id?.slice(0, 8) || '-'}\n`;
             receipt += `Tgl: ${date}\n`;
             receipt += `Kasir: Admin\n`;
             receipt += `Pelanggan: ${customerName}\n`;
+            if (order.note) {
+                receipt += `Catatan: ${order.note}\n`;
+            }
             receipt += line + '\n';
-            
+
             // Items
             items.forEach(item => {
                 const itemTotal = item.price * item.quantity;
                 receipt += `${item.name}\n`;
+                if (item.note) {
+                    receipt += `  (${item.note})\n`;
+                }
                 receipt += leftRight(`  ${item.quantity} x ${formatPrice(item.price)}`, formatPrice(itemTotal)) + '\n';
             });
-            
+
             receipt += line + '\n';
-            
+
             // Total
             receipt += '<B>' + leftRight('TOTAL', formatPrice(order.total_amount)) + '</B>\n';
-            
+
             // Payment Info
             if (order.payment_method === 'cash') {
                 receipt += leftRight('Tunai', formatPrice(cashReceived)) + '\n';
@@ -263,29 +270,50 @@ class PrinterService {
             } else {
                 receipt += leftRight('Metode', order.payment_method?.toUpperCase() || 'QRIS') + '\n';
             }
-            
+
             receipt += line + '\n';
-            
+
             // Footer
             receipt += '<C>Terima Kasih!</C>\n';
             receipt += '<C>Selamat Menikmati</C>\n';
             receipt += '\n\n\n'; // Feed paper
-            
+
             return receipt;
         };
 
         try {
+            // Print Logo if available
+            if (logoBase64) {
+                console.log("Printing logo, base64 length:", logoBase64.length);
+                try {
+                    await BLEPrinter.printImageBase64(logoBase64, { imageWidth: 384 });
+                } catch (e) {
+                    console.warn('Failed to print logo', e);
+                }
+            } else {
+                console.log("No logoBase64 provided to printReceipt");
+            }
+
             // Print Copy 1 - Customer
             const receipt1 = generateReceipt('--- PELANGGAN ---');
             await BLEPrinter.printText(receipt1);
-            
+
+            // Print Logo for second copy if available
+            if (logoBase64) {
+                try {
+                    await BLEPrinter.printImageBase64(logoBase64, { imageWidth: 384 });
+                } catch (e) {
+                    console.warn('Failed to print logo', e);
+                }
+            }
+
             // Print Copy 2 - Kasir/Arsip
             const receipt2 = generateReceipt('--- KASIR/ARSIP ---');
             await BLEPrinter.printText(receipt2);
-            
-            
+
+
         } catch (error) {
-            
+
             throw error;
         }
     }
@@ -313,9 +341,9 @@ Time: ${new Date().toLocaleString('id-ID')}
 
         try {
             await BLEPrinter.printText(testReceipt);
-            
+
         } catch (error) {
-            
+
             throw error;
         }
     }
@@ -326,9 +354,9 @@ Time: ${new Date().toLocaleString('id-ID')}
     async clearDefaultPrinter(): Promise<void> {
         try {
             await AsyncStorage.removeItem(PRINTER_STORAGE_KEY);
-            
+
         } catch (error) {
-            
+
         }
     }
 }
