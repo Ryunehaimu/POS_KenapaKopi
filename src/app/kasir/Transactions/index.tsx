@@ -184,25 +184,35 @@ export default function TransactionsScreen() {
             setProcessingPayment(true);
             
             // 1. Update Order Status
-            await orderService.payOrder(selectedUnpaidOrder.id, method, amount); // amount includes discount applied logic if handled in service/UI, usually simple update here
+            await orderService.payOrder(selectedUnpaidOrder.id, method, amount); 
             
-            // 2. Print Receipt
-            const fullOrder = await orderService.getOrderDetails(selectedUnpaidOrder.id);
-            const formattedItems = fullOrder.order_items?.map((item: any) => ({
-                    name: item.products?.name || 'Unknown Item',
-                    price: item.price,
-                    quantity: item.quantity,
-                    note: item.note
-                })) || [];
+            // Payment Successful - Update UI first
+            setPaymentModalVisible(false);
+            loadData(); 
 
-             await printerService.printReceipt(
-                { ...fullOrder, payment_method: method, discount },
-                formattedItems,
-                fullOrder.customer_name,
-                change || 0,
-                cashReceived || 0,
-                ''
-            );
+            // 2. Print Receipt (Non-blocking for payment success)
+            try {
+                const fullOrder = await orderService.getOrderDetails(selectedUnpaidOrder.id);
+                const formattedItems = fullOrder.order_items?.map((item: any) => ({
+                        name: item.products?.name || 'Unknown Item',
+                        price: item.price,
+                        quantity: item.quantity,
+                        note: item.note
+                    })) || [];
+
+                 await printerService.printReceipt(
+                    { ...fullOrder, payment_method: method, discount },
+                    formattedItems,
+                    fullOrder.customer_name,
+                    change || 0,
+                    cashReceived || 0,
+                    ''
+                );
+            } catch (printError) {
+                console.error("Print error", printError);
+                Alert.alert("Info", "Pembayaran berhasil tetapi gagal mencetak struk. Coba cetak ulang dari riwayat.");
+                // We don't return here, we proceed to success alert
+            }
 
             Alert.alert("Sukses", "Pembayaran berhasil dicatat", [
                 {
@@ -210,6 +220,15 @@ export default function TransactionsScreen() {
                     onPress: async () => {
                         try {
                             // Print Second Copy (Store/Archive)
+                             // Need to fetch again or reuse data? reusing is fine if scope allows, but safe to fetch
+                             const fullOrder = await orderService.getOrderDetails(selectedUnpaidOrder.id!);
+                             const formattedItems = fullOrder.order_items?.map((item: any) => ({
+                                    name: item.products?.name || 'Unknown Item',
+                                    price: item.price,
+                                    quantity: item.quantity,
+                                    note: item.note
+                                })) || [];
+                                
                              await printerService.printReceipt(
                                 { ...fullOrder, payment_method: method, discount },
                                 formattedItems,
@@ -225,11 +244,9 @@ export default function TransactionsScreen() {
                 }
             ]);
             
-            setPaymentModalVisible(false);
-            loadData(); // Refresh lists
-        } catch (e) {
+        } catch (e: any) {
             console.error("Pay error", e);
-            Alert.alert("Error", "Gagal memproses pembayaran");
+            Alert.alert("Error", `Gagal memproses pembayaran: ${e.message || 'Unknown error'}`);
         } finally {
             setProcessingPayment(false);
             setSelectedUnpaidOrder(null);
