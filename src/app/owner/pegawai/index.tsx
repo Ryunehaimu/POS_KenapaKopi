@@ -92,7 +92,13 @@ export default function EmployeeListScreen() {
                     >
                         <ChevronLeft size={24} color="white" />
                     </TouchableOpacity>
-                    <Text className="text-white text-xl font-bold">Karyawan</Text>
+                    <Text className="text-white text-xl font-bold flex-1">Karyawan</Text>
+                    <TouchableOpacity
+                        onPress={() => router.push('/owner/pegawai/shifts')}
+                        className="bg-white/20 px-3 py-1.5 rounded-lg"
+                    >
+                        <Text className="text-white font-bold text-xs">Atur Shift</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <Text className="text-white text-sm font-medium mb-2">Summary</Text>
