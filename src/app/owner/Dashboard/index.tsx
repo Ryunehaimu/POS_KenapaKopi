@@ -137,12 +137,12 @@ export default function OwnerDashboard() {
                 Rp. {dailyStats.total_revenue.toLocaleString('id-ID')}
               </Text>
               <View className="mt-2 space-y-1">
-                 <Text className="text-[10px] text-gray-500">
-                    Tunai: Rp {dailyStats.cash_revenue.toLocaleString('id-ID')}
-                 </Text>
-                 <Text className="text-[10px] text-gray-500">
-                    QRIS : Rp {dailyStats.qris_revenue.toLocaleString('id-ID')}
-                 </Text>
+                <Text className="text-[10px] text-gray-500">
+                  Tunai: Rp {dailyStats.cash_revenue.toLocaleString('id-ID')}
+                </Text>
+                <Text className="text-[10px] text-gray-500">
+                  QRIS : Rp {dailyStats.qris_revenue.toLocaleString('id-ID')}
+                </Text>
               </View>
               <Text className="text-gray-400 text-xs mt-2 font-medium">Pendapatan Hari ini</Text>
             </View>
@@ -162,12 +162,12 @@ export default function OwnerDashboard() {
                 Rp. {monthlyStats.total_revenue.toLocaleString('id-ID')}
               </Text>
               <View className="mt-2 space-y-1">
-                 <Text className="text-[10px] text-gray-500">
-                    Tunai: Rp {monthlyStats.cash_revenue.toLocaleString('id-ID')}
-                 </Text>
-                 <Text className="text-[10px] text-gray-500">
-                    QRIS : Rp {monthlyStats.qris_revenue.toLocaleString('id-ID')}
-                 </Text>
+                <Text className="text-[10px] text-gray-500">
+                  Tunai: Rp {monthlyStats.cash_revenue.toLocaleString('id-ID')}
+                </Text>
+                <Text className="text-[10px] text-gray-500">
+                  QRIS : Rp {monthlyStats.qris_revenue.toLocaleString('id-ID')}
+                </Text>
               </View>
               <Text className="text-gray-400 text-xs mt-2 font-medium">Pendapatan Bulan Ini</Text>
             </View>

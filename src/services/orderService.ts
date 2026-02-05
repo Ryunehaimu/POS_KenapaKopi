@@ -63,7 +63,14 @@ export const orderService = {
     return orderData;
   },
 
-  async getRecentOrders(startDate?: Date, endDate?: Date, page: number = 1, limit: number = 10) {
+  async getRecentOrders(
+    startDate?: Date,
+    endDate?: Date,
+    page: number = 1,
+    limit: number = 10,
+    status?: string,
+    paymentMethod?: string
+  ) {
     let query = supabase
       .from('orders')
       .select('*', { count: 'exact' })
@@ -73,6 +80,15 @@ export const orderService = {
       query = query
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
+    }
+
+    if (status && status !== 'All') {
+      query = query.eq('status', status.toLowerCase());
+    }
+
+    if (paymentMethod && paymentMethod !== 'All') {
+      const method = paymentMethod === 'QRIS' ? 'qris' : 'cash';
+      query = query.eq('payment_method', method);
     }
 
     // Pagination

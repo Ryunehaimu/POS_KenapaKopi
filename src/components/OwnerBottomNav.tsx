@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Home, LogOut } from 'lucide-react-native';
+import { Home, LogOut, FileClock } from 'lucide-react-native';
 import { authService } from '../services/authService';
 
 interface OwnerBottomNavProps {
-    activeMenu?: 'home';
+    activeMenu?: 'home' | 'history';
 }
 
 export default function OwnerBottomNav({ activeMenu = 'home' }: OwnerBottomNavProps) {
@@ -37,6 +37,14 @@ export default function OwnerBottomNav({ activeMenu = 'home' }: OwnerBottomNavPr
             >
                 <Home color={activeMenu === 'home' ? "#4f46e5" : "#9ca3af"} size={24} />
                 <Text className={`text-[10px] font-bold mt-1 ${activeMenu === 'home' ? 'text-indigo-600' : 'text-gray-400'}`}>Beranda</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                className="items-center"
+                onPress={() => router.push('/owner/history')}
+            >
+                <FileClock color={activeMenu === 'history' ? "#4f46e5" : "#9ca3af"} size={24} />
+                <Text className={`text-[10px] font-bold mt-1 ${activeMenu === 'history' ? 'text-indigo-600' : 'text-gray-400'}`}>Riwayat</Text>
             </TouchableOpacity>
 
             <TouchableOpacity className="items-center" onPress={handleLogout}>

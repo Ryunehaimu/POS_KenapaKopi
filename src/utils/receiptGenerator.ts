@@ -2,7 +2,7 @@
 import { Order } from '../services/orderService';
 import { CartItemType } from '../components/cashier/CartItem'; // Adjust import if needed or redefine
 
-export const generateReceiptHtml = (order: any, items: any[], customerName: string, change: number, cashReceived: number, logoBase64?: string) => {
+export const generateReceiptHtml = (order: any, items: any[], customerName: string, change: number, cashReceived: number) => {
     const date = new Date().toLocaleString('id-ID');
 
     let itemsHtml = '';
@@ -17,7 +17,7 @@ export const generateReceiptHtml = (order: any, items: any[], customerName: stri
             </div>
         `;
     });
-
+    //<p style="margin: 5px 0; font-size: 12px;">Jl. Kopi No. 123, Jakarta</p>
     return `
         <html>
             <head>
@@ -25,8 +25,8 @@ export const generateReceiptHtml = (order: any, items: any[], customerName: stri
             </head>
             <body style="font-family: 'Courier New', Courier, monospace; width: 100%; max-width: 300px; margin: 0 auto; padding: 10px;">
                 <div style="text-align: center; margin-bottom: 20px;">
-                    ${logoBase64 ? `<img src="data:image/png;base64,${logoBase64}" style="width: 250px; height: auto; margin-bottom: 10px;" />` : ''}
-                    <p style="margin: 5px 0; font-size: 12px;">Jl. Kopi No. 123, Jakarta</p>
+                    <h1 style="margin: 0 0 10px 0; font-size: 24px; font-weight: bold;">KenapaKopi</h1>
+                    
                     <p style="margin: 5px 0; font-size: 12px;">Telp: 0878-3628-5577</p>
                 </div>
                 

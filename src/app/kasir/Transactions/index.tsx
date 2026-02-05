@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Calendar, CreditCard, Banknote, FileText, Coffee, Edit } from 'lucide-react-native';
+import { Calendar, CreditCard, Banknote, FileText, Coffee, Edit, Printer } from 'lucide-react-native';
 import KasirSidebar from '../../../components/KasirSidebar';
 import { orderService, Order } from '../../../services/orderService';
+import { printerService } from '../../../services/printerService';
 import { inventoryService } from '../../../services/inventoryService';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
@@ -129,6 +130,39 @@ export default function TransactionsScreen() {
         return date.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     };
 
+    const handleReprint = async (orderId: string) => {
+        try {
+            setLoading(true);
+            const fullOrder = await orderService.getOrderDetails(orderId);
+
+            if (fullOrder) {
+                // Map items to flatten product name from Supabase join structure for printerService
+                // printerService expects: { name, price, quantity, note }
+                // getOrderDetails returns: { ..., products: { name: ... } }
+                const formattedItems = fullOrder.order_items?.map((item: any) => ({
+                    name: item.products?.name || 'Unknown Item',
+                    price: item.price,
+                    quantity: item.quantity,
+                    note: item.note
+                })) || [];
+
+                await printerService.printReceipt(
+                    fullOrder,
+                    formattedItems,
+                    fullOrder.customer_name,
+                    0,
+                    fullOrder.total_amount
+                );
+                Alert.alert("Sukses", "Struk berhasil dicetak ulang");
+            }
+        } catch (error) {
+            console.error("Reprint error:", error);
+            Alert.alert("Error", "Gagal mencetak ulang struk");
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
 
     return (
@@ -239,7 +273,7 @@ export default function TransactionsScreen() {
                                                 <Text className="flex-1 text-gray-500 font-bold">Metode</Text>
                                                 <Text className="flex-1 text-gray-500 font-bold text-right">Total</Text>
                                                 <Text className="flex-1 text-gray-500 font-bold text-center">Status</Text>
-                                                <Text className="w-16 text-gray-500 font-bold text-center">Aksi</Text>
+                                                <Text className="w-24 text-gray-500 font-bold text-center">Aksi</Text>
                                             </View>
                                             {recentOrders.map((order, idx) => (
                                                 <View key={idx} className="flex-row py-4 border-b border-gray-50 hover:bg-gray-50 items-center">
@@ -256,22 +290,26 @@ export default function TransactionsScreen() {
                                                     </View>
                                                     <Text className="flex-1 text-gray-900 font-bold text-right">Rp {order.total_amount.toLocaleString()}</Text>
                                                     <View className="flex-1 items-center">
-                                                        <View className={`px-2 py-1 rounded-full ${
-                                                            order.status === 'completed' ? 'bg-green-100' 
+                                                        <View className={`px-2 py-1 rounded-full ${order.status === 'completed' ? 'bg-green-100'
                                                             : order.status === 'pending' ? 'bg-yellow-100'
-                                                            : 'bg-red-100'
-                                                        }`}>
-                                                            <Text className={`text-xs font-bold capitalize ${
-                                                                order.status === 'completed' ? 'text-green-800'
-                                                                : order.status === 'pending' ? 'text-yellow-800'
-                                                                : 'text-red-800'
+                                                                : 'bg-red-100'
                                                             }`}>
+                                                            <Text className={`text-xs font-bold capitalize ${order.status === 'completed' ? 'text-green-800'
+                                                                : order.status === 'pending' ? 'text-yellow-800'
+                                                                    : 'text-red-800'
+                                                                }`}>
                                                                 {order.status}
                                                             </Text>
                                                         </View>
                                                     </View>
-                                                    <View className="w-16 items-center">
-                                                        <TouchableOpacity 
+                                                    <View className="w-24 items-center flex-row justify-center gap-2">
+                                                        <TouchableOpacity
+                                                            onPress={() => handleReprint(order.id!)}
+                                                            className="bg-gray-100 p-2 rounded-lg"
+                                                        >
+                                                            <Printer size={16} color="#4B5563" />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
                                                             onPress={() => router.push(`/kasir/Transactions/edit/${order.id}`)}
                                                             className="bg-indigo-100 p-2 rounded-lg"
                                                         >

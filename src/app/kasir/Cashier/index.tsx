@@ -12,7 +12,6 @@ import { productService, Product } from '../../../services/productService';
 import { categoryService, Category } from '../../../services/categoryService';
 import { orderService } from '../../../services/orderService';
 import * as Print from 'expo-print';
-import { RECEIPT_LOGO_BASE64 } from '../../../constants/receiptLogo';
 import { generateReceiptHtml } from '../../../utils/receiptGenerator';
 import { printerService } from '../../../services/printerService';
 
@@ -160,8 +159,7 @@ export default function CashierScreen() {
                         cart,
                         customerName,
                         change || 0,
-                        cashReceived || 0,
-                        RECEIPT_LOGO_BASE64
+                        cashReceived || 0
                     );
                 } else {
                     // Fallback: Try to auto-connect to saved printer
@@ -172,8 +170,7 @@ export default function CashierScreen() {
                             cart,
                             customerName,
                             change || 0,
-                            cashReceived || 0,
-                            RECEIPT_LOGO_BASE64
+                            cashReceived || 0
                         );
                     } else {
                         // Ultimate fallback: use expo-print dialog
@@ -182,8 +179,7 @@ export default function CashierScreen() {
                             cart,
                             customerName,
                             change || 0,
-                            cashReceived || 0,
-                            RECEIPT_LOGO_BASE64
+                            cashReceived || 0
                         );
                         await Print.printAsync({ html });
                     }
@@ -197,8 +193,7 @@ export default function CashierScreen() {
                         cart,
                         customerName,
                         change || 0,
-                        cashReceived || 0,
-                        RECEIPT_LOGO_BASE64
+                        cashReceived || 0
                     );
                     await Print.printAsync({ html });
                 } catch (fallbackError) {
