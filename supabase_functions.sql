@@ -104,7 +104,7 @@ begin
 end;
 $$;
 
--- Function to get daily sales report (Revenue, Count, Split, Menu Sales)
+-- Function to get daily sales report (Revenue, Count, Split by all payment methods, Menu Sales)
 create or replace function get_daily_sales_report(report_date date)
 returns json
 language plpgsql
@@ -115,19 +115,28 @@ declare
     v_total_transactions int;
     v_cash_revenue numeric;
     v_qris_revenue numeric;
+    v_gojek_revenue numeric;
+    v_grab_revenue numeric;
+    v_shopee_revenue numeric;
     v_menu_sales json;
 begin
-    -- 1. Calculate Totals
+    -- 1. Calculate Totals with all payment methods
     select 
         coalesce(sum(total_amount), 0),
         count(id),
         coalesce(sum(case when payment_method = 'cash' then total_amount else 0 end), 0),
-        coalesce(sum(case when payment_method = 'qris' then total_amount else 0 end), 0)
+        coalesce(sum(case when payment_method = 'qris' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'gojek' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'grab' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'shopee' then total_amount else 0 end), 0)
     into 
         v_total_revenue,
         v_total_transactions,
         v_cash_revenue,
-        v_qris_revenue
+        v_qris_revenue,
+        v_gojek_revenue,
+        v_grab_revenue,
+        v_shopee_revenue
     from orders
     where date(created_at AT TIME ZONE 'Asia/Jakarta') = report_date 
     and status = 'completed';
@@ -151,16 +160,92 @@ begin
         order by quantity_sold desc
     ) t;
 
-    -- 3. Return JSON
+    -- 3. Return JSON with all payment methods
     return json_build_object(
         'total_revenue', v_total_revenue,
         'total_transactions', v_total_transactions,
         'cash_revenue', v_cash_revenue,
         'qris_revenue', v_qris_revenue,
+        'gojek_revenue', v_gojek_revenue,
+        'grab_revenue', v_grab_revenue,
+        'shopee_revenue', v_shopee_revenue,
         'menu_sales', coalesce(v_menu_sales, '[]'::json)
     );
 end;
 $$;
+
+-- Function to get shift-based sales report (by time range within a day)
+create or replace function get_shift_sales_report(start_time timestamp, end_time timestamp)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+    v_total_revenue numeric;
+    v_total_transactions int;
+    v_cash_revenue numeric;
+    v_qris_revenue numeric;
+    v_gojek_revenue numeric;
+    v_grab_revenue numeric;
+    v_shopee_revenue numeric;
+    v_menu_sales json;
+begin
+    -- 1. Calculate Totals with all payment methods for the time range
+    select 
+        coalesce(sum(total_amount), 0),
+        count(id),
+        coalesce(sum(case when payment_method = 'cash' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'qris' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'gojek' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'grab' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'shopee' then total_amount else 0 end), 0)
+    into 
+        v_total_revenue,
+        v_total_transactions,
+        v_cash_revenue,
+        v_qris_revenue,
+        v_gojek_revenue,
+        v_grab_revenue,
+        v_shopee_revenue
+    from orders
+    where (created_at AT TIME ZONE 'Asia/Jakarta') >= start_time
+    and (created_at AT TIME ZONE 'Asia/Jakarta') <= end_time
+    and status = 'completed';
+
+    -- 2. Calculate Menu Sales for the time range
+    select json_agg(t)
+    into v_menu_sales
+    from (
+        select 
+            p.name as product_name,
+            c.name as category,
+            sum(oi.quantity) as quantity_sold,
+            sum(oi.subtotal) as total_revenue
+        from order_items oi
+        join orders o on oi.order_id = o.id
+        left join products p on oi.product_id = p.id
+        left join categories c on p.category_id = c.id
+        where (o.created_at AT TIME ZONE 'Asia/Jakarta') >= start_time
+        and (o.created_at AT TIME ZONE 'Asia/Jakarta') <= end_time
+        and o.status = 'completed'
+        group by p.name, c.name
+        order by quantity_sold desc
+    ) t;
+
+    -- 3. Return JSON with all payment methods
+    return json_build_object(
+        'total_revenue', v_total_revenue,
+        'total_transactions', v_total_transactions,
+        'cash_revenue', v_cash_revenue,
+        'qris_revenue', v_qris_revenue,
+        'gojek_revenue', v_gojek_revenue,
+        'grab_revenue', v_grab_revenue,
+        'shopee_revenue', v_shopee_revenue,
+        'menu_sales', coalesce(v_menu_sales, '[]'::json)
+    );
+end;
+$$;
+
 
 -- Function to get sales report by date range (Generic: Daily or Monthly)
 create or replace function get_sales_report(start_date date, end_date date)

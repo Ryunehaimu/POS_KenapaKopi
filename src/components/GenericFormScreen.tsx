@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router'; // Use static router object
 import { ChevronLeft, Save, ChevronDown } from 'lucide-react-native';
 
 export interface FormField {
@@ -32,7 +32,7 @@ export default function GenericFormScreen({
   submitLabel = "Simpan",
   children
 }: GenericFormScreenProps) {
-  const router = useRouter();
+  // Removed useRouter() hook - using static router object instead
 
   const renderField = (field: FormField, index: number) => {
       if (field.type === 'select' && field.options) {

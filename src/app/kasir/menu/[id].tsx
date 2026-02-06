@@ -25,6 +25,9 @@ export default function EditMenuScreen() {
     // Form Data
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
+    const [priceGojek, setPriceGojek] = useState('');
+    const [priceGrab, setPriceGrab] = useState('');
+    const [priceShopee, setPriceShopee] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [description, setDescription] = useState('');
     const [imageUri, setImageUri] = useState('');
@@ -56,6 +59,9 @@ export default function EditMenuScreen() {
                 // Populate form
                 setName(product.name);
                 setPrice(product.price.toString());
+                setPriceGojek(product.price_gojek ? product.price_gojek.toString() : product.price.toString());
+                setPriceGrab(product.price_grab ? product.price_grab.toString() : product.price.toString());
+                setPriceShopee(product.price_shopee ? product.price_shopee.toString() : product.price.toString());
                 setCategoryId(product.category_id || '');
                 setDescription(product.description || '');
                 setImageUri(product.image_url || '');
@@ -160,6 +166,10 @@ export default function EditMenuScreen() {
             }
 
             const priceNumber = parseInt(price.replace(/[^0-9]/g, ''));
+            const priceGojekNumber = priceGojek ? parseInt(priceGojek.replace(/[^0-9]/g, '')) : priceNumber;
+            const priceGrabNumber = priceGrab ? parseInt(priceGrab.replace(/[^0-9]/g, '')) : priceNumber;
+            const priceShopeeNumber = priceShopee ? parseInt(priceShopee.replace(/[^0-9]/g, '')) : priceNumber;
+
 
             const recipePayload = recipeItems.map(item => ({
                 ingredient_id: item.ingredient_id,
@@ -169,6 +179,9 @@ export default function EditMenuScreen() {
             await productService.updateProduct(productId, {
                 name,
                 price: priceNumber,
+                price_gojek: priceGojekNumber,
+                price_grab: priceGrabNumber,
+                price_shopee: priceShopeeNumber,
                 category_id: categoryId,
                 description,
                 image_url: finalImageUrl
@@ -273,7 +286,7 @@ export default function EditMenuScreen() {
                         {/* Harga & Kategori Row */}
                         <View className="flex-row gap-4 mb-6">
                             <View className="flex-1">
-                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga Barang <Text className="text-red-500">*</Text></Text>
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga (Outlet) <Text className="text-red-500">*</Text></Text>
                                 <TextInput
                                     value={price}
                                     onChangeText={setPrice}
@@ -283,6 +296,8 @@ export default function EditMenuScreen() {
                                 />
                             </View>
                             <View className="flex-1">
+                                {/* ... (rest is same, but I need to include context to match block) ... */}
+
                                 <Text className="text-sm font-medium text-gray-700 mb-2">Kategori <Text className="text-red-500">*</Text></Text>
                                 <View className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden h-[58px] justify-center">
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-2">
@@ -301,6 +316,40 @@ export default function EditMenuScreen() {
                                         </View>
                                     </ScrollView>
                                 </View>
+                            </View>
+                        </View>
+
+                        {/* ONLINE PRICES */}
+                        <View className="flex-row gap-4 mb-6">
+                             <View className="flex-1">
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga Gojek</Text>
+                                <TextInput
+                                    value={priceGojek}
+                                    onChangeText={setPriceGojek}
+                                    placeholder="Opsional"
+                                    keyboardType="numeric"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800"
+                                />
+                            </View>
+                             <View className="flex-1">
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga Grab</Text>
+                                <TextInput
+                                    value={priceGrab}
+                                    onChangeText={setPriceGrab}
+                                    placeholder="Opsional"
+                                    keyboardType="numeric"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800"
+                                />
+                            </View>
+                             <View className="flex-1">
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga Shopee</Text>
+                                <TextInput
+                                    value={priceShopee}
+                                    onChangeText={setPriceShopee}
+                                    placeholder="Opsional"
+                                    keyboardType="numeric"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800"
+                                />
                             </View>
                         </View>
 

@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, FlatList, Alert, ActivityIndicator, Platform } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { useRouter } from 'expo-router';
+// import { useRouter } from 'expo-router'; // Removed unused import
 import { Search, ShoppingCart, User, Ticket } from 'lucide-react-native';
 import KasirSidebar from '../../../components/KasirSidebar';
+
+// Stable wrapper to prevent KasirSidebar from re-rendering on parent state changes
+const StableSidebar = memo(() => <KasirSidebar activeMenu="cashier" />);
+
 import { ProductCard } from '../../../components/cashier/ProductCard';
 import { CategoryFilter } from '../../../components/cashier/CategoryFilter';
 import { CartItem, CartItemType } from '../../../components/cashier/CartItem';
@@ -16,7 +20,8 @@ import { generateReceiptHtml } from '../../../utils/receiptGenerator';
 import { printerService } from '../../../services/printerService';
 
 export default function CashierScreen() {
-    const router = useRouter();
+    // const router = useRouter(); // Removed unused hook
+
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
@@ -53,14 +58,45 @@ export default function CashierScreen() {
         fetchData();
     }, []);
 
-    // Filter Products
+    // Transaction Type State
+    type TransactionType = 'outlet' | 'gojek' | 'grab' | 'shopee';
+    const [transactionType, setTransactionType] = useState<TransactionType>('outlet');
+
+    // Helper to get price based on type
+    const getPrice = (product: Product, type: TransactionType) => {
+        switch (type) {
+            case 'gojek': return product.price_gojek || product.price;
+            case 'grab': return product.price_grab || product.price;
+            case 'shopee': return product.price_shopee || product.price;
+            default: return product.price;
+        }
+    };
+
+    // Filter Products & Adjust Price
     const filteredProducts = useMemo(() => {
         return products.filter(p => {
             const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesCategory = selectedCategory ? p.category_id === selectedCategory : true;
             return matchesSearch && matchesCategory;
-        });
-    }, [products, searchQuery, selectedCategory]);
+        }).map(p => ({
+            ...p,
+            price: getPrice(p, transactionType) // Override price for display & cart
+        }));
+    }, [products, searchQuery, selectedCategory, transactionType]);
+
+    // Update Cart when Transaction Type changes
+    useEffect(() => {
+        setCart(prev => prev.map(item => {
+            // Find original product to get all price fields
+            const originalProduct = products.find(p => p.id === item.id);
+            if (!originalProduct) return item;
+            
+            return {
+                ...item,
+                price: getPrice(originalProduct, transactionType)
+            };
+        }));
+    }, [transactionType, products]);
 
     // Cart Calculations
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -114,7 +150,121 @@ export default function CashierScreen() {
             Alert.alert("Validasi", "Masukkan nama pelanggan");
             return;
         }
+        
+        // For online orders (Gojek/Grab/Shopee), skip modal and process directly
+        if (transactionType !== 'outlet') {
+            handleOnlineOrderPayment();
+            return;
+        }
+        
         setPaymentModalVisible(true);
+    };
+
+    // Handle payment for online orders (Gojek/Grab/Shopee)
+    const handleOnlineOrderPayment = async () => {
+        try {
+            setProcessing(true);
+            
+            const orderItems = cart.map(item => ({
+                product_id: item.id,
+                quantity: item.quantity,
+                price: item.price,
+                subtotal: item.price * item.quantity,
+                note: item.note
+            }));
+
+            const orderData = await orderService.createOrder({
+                customer_name: `${customerName} (${transactionType.toUpperCase()})`,
+                total_amount: total,
+                status: 'completed',
+                payment_method: transactionType as any, // gojek, grab, shopee
+                note: note
+            }, orderItems);
+
+            // Trigger Stock Deduction
+            if (orderData?.id) {
+                orderService.processStockDeduction(orderData.id);
+            }
+
+            // Print receipt for online order
+            try {
+                if (printerService.isConnected()) {
+                    await printerService.printReceipt(
+                        { ...orderData, payment_method: transactionType, note, discount: 0 },
+                        cart,
+                        customerName,
+                        0,
+                        total,
+                        `--- ${transactionType.toUpperCase()} ORDER ---`
+                    );
+                } else {
+                    const autoConnected = await printerService.autoConnect();
+                    if (autoConnected) {
+                        await printerService.printReceipt(
+                            { ...orderData, payment_method: transactionType, note, discount: 0 },
+                            cart,
+                            customerName,
+                            0,
+                            total,
+                            `--- ${transactionType.toUpperCase()} ORDER ---`
+                        );
+                    } else {
+                        // Printer not connected - skip first print
+                    }
+                }
+            } catch (printError) {
+                console.log("Print error for online order:", printError);
+            }
+
+            Alert.alert(
+                "Sukses", 
+                `Order ${transactionType.toUpperCase()} Berhasil!\nTotal: Rp ${total.toLocaleString()}`,
+                [{
+                    text: "OK",
+                    onPress: async () => {
+                        // Print second copy (Archive/Kasir)
+                        try {
+                            if (printerService.isConnected()) {
+                                await printerService.printReceipt(
+                                    { ...orderData, payment_method: transactionType, note, discount: 0 },
+                                    cart,
+                                    customerName,
+                                    0,
+                                    total,
+                                    `--- KASIR/ARSIP (${transactionType.toUpperCase()}) ---`
+                                );
+                            } else {
+                                const autoConnected = await printerService.autoConnect();
+                                if (autoConnected) {
+                                    await printerService.printReceipt(
+                                        { ...orderData, payment_method: transactionType, note, discount: 0 },
+                                        cart,
+                                        customerName,
+                                        0,
+                                        total,
+                                        `--- KASIR/ARSIP (${transactionType.toUpperCase()}) ---`
+                                    );
+                                } else {
+                                    // Printer not connected - skip second print
+                                }
+                            }
+                        } catch (e) {
+                            console.log("Failed to print second copy for online order", e);
+                        }
+                        
+                        setCart([]);
+                        setCustomerName('');
+                        setNote('');
+                        setTransactionType('outlet');
+                    }
+                }]
+            );
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "Gagal memproses order");
+        } finally {
+            setProcessing(false);
+        }
     };
 
     const handleConfirmPayment = async (
@@ -136,7 +286,7 @@ export default function CashierScreen() {
             }));
 
             const orderData = await orderService.createOrder({
-                customer_name: customerName,
+                customer_name: `${customerName} (${transactionType.toUpperCase()})`, // Append type to name for clarity in backend/history
                 total_amount: finalAmount,
                 status: 'completed',
                 payment_method: paymentMethod,
@@ -239,6 +389,7 @@ export default function CashierScreen() {
                         setCart([]);
                         setCustomerName('');
                         setNote('');
+                        setTransactionType('outlet'); // Reset to default
                     }
                 }
             ]);
@@ -253,7 +404,7 @@ export default function CashierScreen() {
     if (loading) {
         return (
             <View className="flex-1 bg-gray-50 flex-row">
-                <KasirSidebar activeMenu="cashier" />
+                <StableSidebar />
                 <View className="flex-1 items-center justify-center">
                     <ActivityIndicator size="large" color="#4F46E5" />
                 </View>
@@ -263,28 +414,31 @@ export default function CashierScreen() {
 
     return (
         <View className="flex-1 bg-gray-50 flex-row">
-            <KasirSidebar activeMenu="cashier" />
+            <StableSidebar />
 
             {/* Main Content Area */}
             <View className="flex-1 flex-row">
 
                 {/* LEFT PANEL: Menu & Products */}
                 <View className="flex-1 p-6 pr-3">
-                    <View className="flex-row items-center justify-between mb-6">
-                        <View>
-                            <Text className="text-2xl font-bold text-gray-900">Order</Text>
-                            <Text className="text-gray-500 text-sm">Pilih menu untuk pesanan baru</Text>
+                    <View className="flex-col mb-6">
+                        <View className="flex-row items-center justify-between mb-4">
+                            <View>
+                                <Text className="text-2xl font-bold text-gray-900">Order</Text>
+                                <Text className="text-gray-500 text-sm">Pilih menu untuk pesanan baru</Text>
+                            </View>
+
+                            <View className="flex-row bg-white border border-gray-200 rounded-xl px-4 py-2 items-center w-64 shadow-sm">
+                                <Search size={20} color="#9CA3AF" />
+                                <TextInput
+                                    placeholder="Search menu..."
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                    className="flex-1 ml-2 text-gray-800"
+                                />
+                            </View>
                         </View>
 
-                        <View className="flex-row bg-white border border-gray-200 rounded-xl px-4 py-2 items-center w-64 shadow-sm">
-                            <Search size={20} color="#9CA3AF" />
-                            <TextInput
-                                placeholder="Search menu..."
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                                className="flex-1 ml-2 text-gray-800"
-                            />
-                        </View>
                     </View>
 
                     <CategoryFilter
@@ -331,6 +485,34 @@ export default function CashierScreen() {
                             </View>
                         </View>
 
+                        {/* Transaction Type Selector - Using inline styles to bypass NativeWind */}
+                        <View style={{ marginBottom: 24 }}>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#6B7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Tipe Transaksi</Text>
+                            <View style={{ flexDirection: 'row', backgroundColor: '#F3F4F6', padding: 4, borderRadius: 12 }}>
+                                {(['outlet', 'gojek', 'grab', 'shopee'] as TransactionType[]).map((type) => (
+                                    <TouchableOpacity
+                                        key={type}
+                                        onPress={() => setTransactionType(type)}
+                                        style={{
+                                            flex: 1,
+                                            paddingVertical: 8,
+                                            borderRadius: 8,
+                                            alignItems: 'center',
+                                            backgroundColor: transactionType === type ? '#4F46E5' : 'transparent',
+                                        }}
+                                    >
+                                        <Text style={{
+                                            fontWeight: 'bold',
+                                            fontSize: 12,
+                                            textTransform: 'capitalize',
+                                            color: transactionType === type ? '#FFFFFF' : '#4B5563'
+                                        }}>
+                                            {type}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
                         {/* Global Note Input */}
                         <View className="mb-6">
                             <Text className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Catatan Umum</Text>
@@ -405,7 +587,7 @@ export default function CashierScreen() {
                                                             customer_name: customerName,
                                                             total_amount: total,
                                                             status: 'pending',
-                                                            payment_method: 'cash', // Placeholder, creates as 'cash' officially but status pending
+                                                            payment_method: 'cash', // Placeholder to force view_file first 'cash' officially but status pending
                                                             note: note
                                                         }, orderItems);
 

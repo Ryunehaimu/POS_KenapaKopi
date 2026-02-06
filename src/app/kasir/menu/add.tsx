@@ -22,6 +22,9 @@ export default function AddMenuScreen() {
     // Form Data
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
+    const [priceGojek, setPriceGojek] = useState('');
+    const [priceGrab, setPriceGrab] = useState('');
+    const [priceShopee, setPriceShopee] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [description, setDescription] = useState('');
     const [imageUri, setImageUri] = useState('');
@@ -135,6 +138,10 @@ export default function AddMenuScreen() {
             }
 
             const priceNumber = parseInt(price.replace(/[^0-9]/g, ''));
+            const priceGojekNumber = priceGojek ? parseInt(priceGojek.replace(/[^0-9]/g, '')) : priceNumber;
+            const priceGrabNumber = priceGrab ? parseInt(priceGrab.replace(/[^0-9]/g, '')) : priceNumber;
+            const priceShopeeNumber = priceShopee ? parseInt(priceShopee.replace(/[^0-9]/g, '')) : priceNumber;
+
 
             const recipePayload = recipeItems.map(item => ({
                 ingredient_id: item.ingredient_id,
@@ -144,6 +151,9 @@ export default function AddMenuScreen() {
             await productService.createProduct({
                 name,
                 price: priceNumber,
+                price_gojek: priceGojekNumber,
+                price_grab: priceGrabNumber,
+                price_shopee: priceShopeeNumber,
                 category_id: categoryId,
                 description,
                 image_url: finalImageUrl
@@ -221,7 +231,7 @@ export default function AddMenuScreen() {
                         {/* Harga & Kategori Row */}
                         <View className="flex-row gap-4 mb-6">
                             <View className="flex-1">
-                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga Barang <Text className="text-red-500">*</Text></Text>
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga (Outlet) <Text className="text-red-500">*</Text></Text>
                                 <TextInput
                                     value={price}
                                     onChangeText={setPrice}
@@ -249,6 +259,40 @@ export default function AddMenuScreen() {
                                         </View>
                                     </ScrollView>
                                 </View>
+                            </View>
+                        </View>
+
+                        {/* ONLINE PRICES */}
+                        <View className="flex-row gap-4 mb-6">
+                             <View className="flex-1">
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga Gojek</Text>
+                                <TextInput
+                                    value={priceGojek}
+                                    onChangeText={setPriceGojek}
+                                    placeholder="Opsional"
+                                    keyboardType="numeric"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800"
+                                />
+                            </View>
+                             <View className="flex-1">
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga Grab</Text>
+                                <TextInput
+                                    value={priceGrab}
+                                    onChangeText={setPriceGrab}
+                                    placeholder="Opsional"
+                                    keyboardType="numeric"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800"
+                                />
+                            </View>
+                             <View className="flex-1">
+                                <Text className="text-sm font-medium text-gray-700 mb-2">Harga Shopee</Text>
+                                <TextInput
+                                    value={priceShopee}
+                                    onChangeText={setPriceShopee}
+                                    placeholder="Opsional"
+                                    keyboardType="numeric"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-800"
+                                />
                             </View>
                         </View>
 

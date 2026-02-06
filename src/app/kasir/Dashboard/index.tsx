@@ -1,5 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as Print from 'expo-print';
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, Alert, Modal, FlatList } from 'react-native';
 import {
@@ -7,11 +8,13 @@ import {
   TrendingDown,
   Edit2,
   X,
-  Check
+  Check,
+  Printer
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import KasirSidebar from '../../../components/KasirSidebar';
 import { inventoryService, Ingredient } from '../../../services/inventoryService';
+import { shiftService, Shift } from '../../../services/shiftService';
 
 const WIDGET_STORAGE_KEY = 'DASHBOARD_WIDGET_IDS_KASIR';
 
@@ -32,6 +35,9 @@ export default function KasirDashboard() {
     total_transactions: number;
     cash_revenue: number;
     qris_revenue: number;
+    gojek_revenue: number;
+    grab_revenue: number;
+    shopee_revenue: number;
     menu_sales: {
       product_name: string;
       quantity_sold: number;
@@ -42,8 +48,16 @@ export default function KasirDashboard() {
     total_transactions: 0,
     cash_revenue: 0,
     qris_revenue: 0,
+    gojek_revenue: 0,
+    grab_revenue: 0,
+    shopee_revenue: 0,
     menu_sales: []
   });
+
+  // Shift State - now uses dynamic shifts from database
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [selectedShift, setSelectedShift] = useState<string>('today'); // 'today' or shift ID
+  const [shiftDropdownOpen, setShiftDropdownOpen] = useState(false);
 
   const [monthlyStats, setMonthlyStats] = useState<{
     menu_sales: {
@@ -56,17 +70,49 @@ export default function KasirDashboard() {
   });
   const [lowStockItems, setLowStockItems] = useState<Ingredient[]>([]);
 
-  const loadData = async () => {
+  const loadData = async (shiftId: string = 'today') => {
     try {
       setLoading(true);
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const [ingData, statsData, monthlyData, lowStockData] = await Promise.all([
+      // Fetch shifts from database
+      const shiftsData = await shiftService.getShifts();
+      setShifts(shiftsData);
+
+      // Calculate shift time ranges based on selected shift
+      let statsData;
+      if (shiftId === 'today') {
+        statsData = await orderService.getDailyReport(now);
+      } else {
+        // Find the selected shift
+        const selectedShiftData = shiftsData.find(s => s.id === shiftId);
+        
+        if (selectedShiftData) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          // Parse start_time and end_time from shift data (format: "HH:mm:ss")
+          const [startHour, startMinute] = selectedShiftData.start_time.split(':').map(Number);
+          const [endHour, endMinute] = selectedShiftData.end_time.split(':').map(Number);
+          
+          const startTime = new Date(today);
+          startTime.setHours(startHour, startMinute, 0, 0);
+          
+          const endTime = new Date(today);
+          endTime.setHours(endHour, endMinute, 0, 0);
+          
+          statsData = await orderService.getShiftReport(startTime, endTime);
+        } else {
+          // Fallback to daily report
+          statsData = await orderService.getDailyReport(now);
+        }
+      }
+
+      const [ingData, monthlyData, lowStockData] = await Promise.all([
         inventoryService.getIngredients(),
-        orderService.getDailyReport(now),
         orderService.getSalesReport(startOfMonth, now),
-        inventoryService.getLowStockIngredients(5) // Threshold 5
+        inventoryService.getLowStockIngredients(5)
       ]);
 
       setIngredients(ingData.data);
@@ -87,6 +133,46 @@ export default function KasirDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Print Shift Report
+  const printShiftReport = async () => {
+    // Get shift label from database or use 'Hari Ini'
+    const selectedShiftData = shifts.find(s => s.id === selectedShift);
+    const shiftLabel = selectedShift === 'today' 
+      ? 'Hari Ini (Semua)' 
+      : selectedShiftData 
+        ? `${selectedShiftData.name} (${selectedShiftData.start_time.slice(0, 5)} - ${selectedShiftData.end_time.slice(0, 5)})`
+        : 'Shift';
+    
+    const reportContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial; padding: 20px; }
+            h1 { text-align: center; }
+            .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+            .total { font-weight: bold; font-size: 24px; }
+          </style>
+        </head>
+        <body>
+          <h1>Laporan Penjualan</h1>
+          <h3>${shiftLabel} - ${new Date().toLocaleDateString('id-ID')}</h3>
+          <hr/>
+          <div class="row"><span>Tunai:</span><span>Rp ${dailyStats.cash_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>QRIS:</span><span>Rp ${dailyStats.qris_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>Gojek:</span><span>Rp ${dailyStats.gojek_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>Grab:</span><span>Rp ${dailyStats.grab_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>Shopee:</span><span>Rp ${dailyStats.shopee_revenue.toLocaleString()}</span></div>
+          <hr/>
+          <div class="row total"><span>TOTAL:</span><span>Rp ${dailyStats.total_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>Transaksi:</span><span>${dailyStats.total_transactions}</span></div>
+        </body>
+      </html>
+    `;
+    
+    // Use expo-print to generate PDF/print
+    await Print.printAsync({ html: reportContent });
   };
 
   useFocusEffect(
@@ -135,19 +221,101 @@ export default function KasirDashboard() {
 
           {/* 3. METRICS CARDS (REAL DATA) */}
           <View className="flex-row gap-6 mb-8">
-            <View className="flex-1 bg-sky-50 rounded-3xl p-6">
-              <Text className="text-gray-500 text-sm font-medium mb-4">Pendapatan Transaksi Hari Ini</Text>
+            <View className="flex-[2] bg-sky-50 rounded-3xl p-6">
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-gray-500 text-sm font-medium">Pendapatan Transaksi</Text>
+                <View className="flex-row items-center gap-2">
+                  {/* Print Button */}
+                  <TouchableOpacity 
+                    onPress={printShiftReport}
+                    className="bg-indigo-600 px-3 py-1 rounded-lg flex-row items-center"
+                  >
+                    <Printer color="white" size={14} />
+                    <Text className="text-xs font-medium text-white ml-1">Print</Text>
+                  </TouchableOpacity>
+                  {/* Shift Dropdown */}
+                  <TouchableOpacity 
+                    onPress={() => setShiftDropdownOpen(!shiftDropdownOpen)}
+                    className="bg-white px-3 py-1 rounded-lg border border-gray-200 flex-row items-center"
+                  >
+                    <Text className="text-xs font-medium text-gray-700 mr-1">
+                      {selectedShift === 'today' 
+                        ? 'Hari Ini' 
+                        : shifts.find(s => s.id === selectedShift)?.name || 'Pilih Shift'}
+                    </Text>
+                    <Text className="text-gray-400">▼</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              {shiftDropdownOpen && (
+                <View className="absolute right-6 top-14 bg-white rounded-lg shadow-lg border border-gray-200 z-10 min-w-[200px]">
+                  {/* Hari Ini option */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedShift('today');
+                      setShiftDropdownOpen(false);
+                      loadData('today');
+                    }}
+                    className={`px-4 py-2 border-b border-gray-100 ${selectedShift === 'today' ? 'bg-indigo-50' : ''}`}
+                  >
+                    <Text className={`text-sm ${selectedShift === 'today' ? 'text-indigo-600 font-bold' : 'text-gray-700'}`}>
+                      Hari Ini (Semua)
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {/* Dynamic shifts from database */}
+                  {shifts.map((shift) => (
+                    <TouchableOpacity
+                      key={shift.id}
+                      onPress={() => {
+                        setSelectedShift(shift.id);
+                        setShiftDropdownOpen(false);
+                        loadData(shift.id);
+                      }}
+                      className={`px-4 py-2 border-b border-gray-100 ${selectedShift === shift.id ? 'bg-indigo-50' : ''}`}
+                    >
+                      <Text className={`text-sm ${selectedShift === shift.id ? 'text-indigo-600 font-bold' : 'text-gray-700'}`}>
+                        {shift.name}
+                      </Text>
+                      <Text className="text-xs text-gray-400">
+                        {shift.start_time.slice(0, 5)} - {shift.end_time.slice(0, 5)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
               <View className="flex-row justify-between items-end">
                 <Text className="text-4xl font-bold text-gray-900">Rp {dailyStats.total_revenue.toLocaleString()}</Text>
                 <View className="flex-row items-center space-x-1">
-                  {/* Trend is hardcoded for now as we don't have yesterday's data yet */}
-                  <Text className="text-xs font-bold text-gray-900">Today</Text>
+                  <Text className="text-xs font-bold text-gray-900">Total</Text>
                   <TrendingUp color="black" size={14} />
                 </View>
               </View>
-              <View className="flex-row mt-2 gap-2">
-                <Text className="text-xs text-gray-500">Tunai: Rp {dailyStats.cash_revenue.toLocaleString()}</Text>
-                <Text className="text-xs text-gray-500">QRIS: Rp {dailyStats.qris_revenue.toLocaleString()}</Text>
+              
+              {/* Payment Method Breakdown */}
+              <View className="flex-row flex-wrap mt-4 gap-2">
+                <View className="bg-white px-3 py-1 rounded-lg">
+                  <Text className="text-xs text-gray-500">Tunai</Text>
+                  <Text className="text-sm font-bold text-gray-800">Rp {dailyStats.cash_revenue.toLocaleString()}</Text>
+                </View>
+                <View className="bg-white px-3 py-1 rounded-lg">
+                  <Text className="text-xs text-gray-500">QRIS</Text>
+                  <Text className="text-sm font-bold text-gray-800">Rp {dailyStats.qris_revenue.toLocaleString()}</Text>
+                </View>
+                <View className="bg-green-50 px-3 py-1 rounded-lg border border-green-200">
+                  <Text className="text-xs text-green-600">Gojek</Text>
+                  <Text className="text-sm font-bold text-green-700">Rp {dailyStats.gojek_revenue.toLocaleString()}</Text>
+                </View>
+                <View className="bg-green-50 px-3 py-1 rounded-lg border border-green-200">
+                  <Text className="text-xs text-green-600">Grab</Text>
+                  <Text className="text-sm font-bold text-green-700">Rp {dailyStats.grab_revenue.toLocaleString()}</Text>
+                </View>
+                <View className="bg-orange-50 px-3 py-1 rounded-lg border border-orange-200">
+                  <Text className="text-xs text-orange-600">Shopee</Text>
+                  <Text className="text-sm font-bold text-orange-700">Rp {dailyStats.shopee_revenue.toLocaleString()}</Text>
+                </View>
               </View>
             </View>
 

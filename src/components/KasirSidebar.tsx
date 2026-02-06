@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router'; // Use router object directly, no Link
 import {
   LayoutDashboard,
   Package,
@@ -18,8 +18,8 @@ interface KasirSidebarProps {
   activeMenu: 'dashboard' | 'categories' | 'stock' | 'menu' | 'transactions' | 'cashier' | 'attendance' | 'printerSettings';
 }
 
-export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
-  const router = useRouter();
+function KasirSidebar({ activeMenu }: KasirSidebarProps) {
+  // Using static router object - no hooks that require context
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const handleLogout = () => {
@@ -73,11 +73,11 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
           return (
             <TouchableOpacity
               key={item.key}
-              onPress={() => item.path ? router.push(item.path as any) : null}
+              onPress={() => router.push(item.path as any)}
               className={`flex-row items-center rounded-xl ${isExpanded
                 ? 'px-4 my-1 py-3 space-x-3 w-full'
                 : 'p-3 my-1 justify-center aspect-square'
-                } ${isActive ? 'bg-indigo-600 shadow-md shadow-indigo-200' : 'hover:bg-gray-50'}`}
+              } ${isActive ? 'bg-indigo-600 shadow-md shadow-indigo-200' : 'hover:bg-gray-50'}`}
             >
               <item.icon color={isActive ? 'white' : '#4B5563'} size={24} />
               {isExpanded && (
@@ -121,3 +121,4 @@ export default function KasirSidebar({ activeMenu }: KasirSidebarProps) {
     </View >
   );
 }
+export default React.memo(KasirSidebar);

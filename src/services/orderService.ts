@@ -157,6 +157,41 @@ export const orderService = {
       total_transactions: number;
       cash_revenue: number;
       qris_revenue: number;
+      gojek_revenue: number;
+      grab_revenue: number;
+      shopee_revenue: number;
+      menu_sales: {
+        product_name: string;
+        category: string;
+        quantity_sold: number;
+        total_revenue: number;
+      }[];
+    };
+  },
+
+  async getShiftReport(startTime: Date, endTime: Date) {
+    // Format as ISO strings for timestamp parameters
+    const formatTimestamp = (date: Date) => {
+      const offset = date.getTimezoneOffset() * 60000;
+      const localDate = new Date(date.getTime() - offset);
+      return localDate.toISOString().slice(0, 19).replace('T', ' ');
+    };
+
+    const { data, error } = await supabase
+      .rpc('get_shift_sales_report', { 
+        start_time: formatTimestamp(startTime),
+        end_time: formatTimestamp(endTime)
+      });
+
+    if (error) throw error;
+    return data as {
+      total_revenue: number;
+      total_transactions: number;
+      cash_revenue: number;
+      qris_revenue: number;
+      gojek_revenue: number;
+      grab_revenue: number;
+      shopee_revenue: number;
       menu_sales: {
         product_name: string;
         category: string;

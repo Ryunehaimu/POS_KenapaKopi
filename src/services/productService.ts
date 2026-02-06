@@ -7,6 +7,9 @@ export interface Product {
     id: string;
     name: string;
     price: number;
+    price_gojek?: number;
+    price_grab?: number;
+    price_shopee?: number;
     description?: string;
     category_id?: string;
     image_url?: string;

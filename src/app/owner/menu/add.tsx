@@ -15,6 +15,9 @@ export default function AddMenuScreen() {
     // Fields
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
+    const [priceGojek, setPriceGojek] = useState('');
+    const [priceGrab, setPriceGrab] = useState('');
+    const [priceShopee, setPriceShopee] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [description, setDescription] = useState('');
     const [imageUri, setImageUri] = useState('');
@@ -62,6 +65,9 @@ export default function AddMenuScreen() {
             await productService.createProduct({
                 name,
                 price: parseInt(price),
+                price_gojek: priceGojek ? parseInt(priceGojek) : parseInt(price),
+                price_grab: priceGrab ? parseInt(priceGrab) : parseInt(price),
+                price_shopee: priceShopee ? parseInt(priceShopee) : parseInt(price),
                 category_id: categoryId,
                 description,
                 image_url: finalImageUrl
@@ -86,10 +92,31 @@ export default function AddMenuScreen() {
             placeholder: "Contoh: Americano"
         },
         {
-            label: "Harga",
+            label: "Harga (Outlet)",
             value: price,
             onChangeText: setPrice,
             placeholder: "Contoh: 15000",
+            keyboardType: 'numeric'
+        },
+        {
+            label: "Harga Gojek",
+            value: priceGojek,
+            onChangeText: setPriceGojek,
+            placeholder: "Opsional (Default: Harga Outlet)",
+            keyboardType: 'numeric'
+        },
+        {
+            label: "Harga Grab",
+            value: priceGrab,
+            onChangeText: setPriceGrab,
+            placeholder: "Opsional (Default: Harga Outlet)",
+            keyboardType: 'numeric'
+        },
+        {
+            label: "Harga Shopee",
+            value: priceShopee,
+            onChangeText: setPriceShopee,
+            placeholder: "Opsional (Default: Harga Outlet)",
             keyboardType: 'numeric'
         },
         {

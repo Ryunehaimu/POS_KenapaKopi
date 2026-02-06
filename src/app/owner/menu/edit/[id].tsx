@@ -18,6 +18,9 @@ export default function EditMenuScreen() {
     // Fields
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
+    const [priceGojek, setPriceGojek] = useState('');
+    const [priceGrab, setPriceGrab] = useState('');
+    const [priceShopee, setPriceShopee] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [description, setDescription] = useState('');
     const [imageUri, setImageUri] = useState('');
@@ -36,6 +39,9 @@ export default function EditMenuScreen() {
                 // Populate form
                 setName(params.name);
                 setPrice(params.price.toString());
+                setPriceGojek(params.price_gojek ? params.price_gojek.toString() : params.price.toString());
+                setPriceGrab(params.price_grab ? params.price_grab.toString() : params.price.toString());
+                setPriceShopee(params.price_shopee ? params.price_shopee.toString() : params.price.toString());
                 setCategoryId(params.category_id || '');
                 setDescription(params.description || '');
                 if (params.image_url) {
@@ -96,6 +102,9 @@ export default function EditMenuScreen() {
             await productService.updateProduct(id as string, {
                 name,
                 price: parseInt(price),
+                price_gojek: priceGojek ? parseInt(priceGojek) : parseInt(price),
+                price_grab: priceGrab ? parseInt(priceGrab) : parseInt(price),
+                price_shopee: priceShopee ? parseInt(priceShopee) : parseInt(price),
                 category_id: categoryId,
                 description,
                 image_url: finalImageUrl
@@ -128,10 +137,31 @@ export default function EditMenuScreen() {
             placeholder: "Contoh: Americano"
         },
         {
-            label: "Harga",
+            label: "Harga (Outlet)",
             value: price,
             onChangeText: setPrice,
             placeholder: "Contoh: 15000",
+            keyboardType: 'numeric'
+        },
+        {
+            label: "Harga Gojek",
+            value: priceGojek,
+            onChangeText: setPriceGojek,
+            placeholder: "Opsional",
+            keyboardType: 'numeric'
+        },
+        {
+            label: "Harga Grab",
+            value: priceGrab,
+            onChangeText: setPriceGrab,
+            placeholder: "Opsional",
+            keyboardType: 'numeric'
+        },
+        {
+            label: "Harga Shopee",
+            value: priceShopee,
+            onChangeText: setPriceShopee,
+            placeholder: "Opsional",
             keyboardType: 'numeric'
         },
         {
