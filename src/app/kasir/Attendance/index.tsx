@@ -126,7 +126,12 @@ export default function AttendancePage() {
     try {
       // Here logic checks active session
       // We rely on service.clockOut to find the active session and cap the time if needed
-      await attendanceService.clockOut(selectedEmployee.id);
+      if (!capturedPhoto) { // Should not happen given the flow, but safety check
+         Alert.alert("Error", "Foto tidak ditemukan. Silahkan ulangi.");
+         resetFlow();
+         return;
+      }
+      await attendanceService.clockOut(selectedEmployee.id, capturedPhoto.base64);
 
       Alert.alert(
         "Berhasil Absen Pulang",

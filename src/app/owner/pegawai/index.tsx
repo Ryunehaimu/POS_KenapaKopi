@@ -99,6 +99,12 @@ export default function EmployeeListScreen() {
                     >
                         <Text className="text-white font-bold text-xs">Atur Shift</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => router.push('/owner/pegawai/incomplete')}
+                        className="bg-orange-500/80 px-3 py-1.5 rounded-lg ml-2"
+                    >
+                        <Text className="text-white font-bold text-xs">Cek Absen</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <Text className="text-white text-sm font-medium mb-2">Summary</Text>

@@ -12,6 +12,7 @@ export const shiftService = {
         const { data, error } = await supabase
             .from('shifts')
             .select('*')
+            .eq('is_deleted', false)
             .order('start_time', { ascending: true });
 
         if (error) throw error;
@@ -42,9 +43,31 @@ export const shiftService = {
     },
 
     async deleteShift(id: string) {
+        // Check if shift is used in attendance_logs TODAY
+        // User logic: "If used today, cannot delete. If used yesterday but not today, can delete."
+        
+        // 1. Get Today's Date (Local/Operational)
+        // Matches the logic in attendanceService for 'date' column
+        const localDate = new Date();
+        const offset = localDate.getTimezoneOffset() * 60000;
+        const today = (new Date(localDate.getTime() - offset)).toISOString().slice(0, 10);
+
+        const { count, error: countError } = await supabase
+            .from('attendance_logs')
+            .select('*', { count: 'exact', head: true })
+            .eq('shift_id', id)
+            .eq('date', today);
+
+        if (countError) throw countError;
+
+        if (count && count > 0) {
+            throw new Error("Shift tidak dapat dihapus karena sedang dipakai hari ini.");
+        }
+
+        // Soft Delete: Mark as deleted instead of removing row
         const { error } = await supabase
             .from('shifts')
-            .delete()
+            .update({ is_deleted: true })
             .eq('id', id);
 
         if (error) throw error;

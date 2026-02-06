@@ -386,7 +386,7 @@ export default function EmployeeHistoryScreen() {
                                 </View>
 
                                 <View className="flex-1">
-                                    <View className="flex-row items-center mb-1 gap-2">
+                                    <View className="flex-row items-center mb-1 gap-2 flex-wrap">
                                         <View className={`w-2 h-2 rounded-full ${log.status === 'Masuk' ? 'bg-green-500' :
                                             log.status === 'Izin' || log.status === 'Sakit' ? 'bg-yellow-500' :
                                                 'bg-red-500'
@@ -399,6 +399,33 @@ export default function EmployeeHistoryScreen() {
                                             </View>
                                         ) : null}
 
+                                        {/* Shift Badge (NEW) */}
+                                        {log.shifts && (
+                                             <View className="bg-blue-100 px-2 py-0.5 rounded ml-2">
+                                                <Text className="text-blue-600 text-[10px] font-bold">
+                                                    {log.shifts.name} ({log.shifts.start_time.slice(0, 5)} - {log.shifts.end_time.slice(0, 5)})
+                                                </Text>
+                                            </View>
+                                        )}
+
+                                        {/* Lupa Checkout Badge (NEW) */}
+                                        {/* Condition: Masuk AND No Clock Out AND Date < Today (Local) */}
+                                        {(() => {
+                                            const now = new Date();
+                                            const offset = now.getTimezoneOffset() * 60000;
+                                            const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
+                                            
+                                            return (
+                                                log.status === 'Masuk' && 
+                                                !log.clock_out_at && 
+                                                log.date < localToday && (
+                                                    <View className="bg-red-100 px-2 py-0.5 rounded ml-2">
+                                                        <Text className="text-red-600 text-[10px] font-bold">Lupa Checkout</Text>
+                                                    </View>
+                                                )
+                                            );
+                                        })()}
+
                                         {/* Overtime Badge */}
                                         {log.overtime_status === 'approved' && log.overtime_minutes && log.overtime_minutes > 0 ? (
                                              <View className="bg-indigo-100 px-2 py-0.5 rounded ml-2">
@@ -410,7 +437,14 @@ export default function EmployeeHistoryScreen() {
                                         <Text className="text-gray-400 text-xs">
                                             {log.status === 'Alpha'
                                                 ? '23.59'
-                                                : new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                                                : (() => {
+                                                    const checkIn = new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                                                    const checkOut = log.clock_out_at 
+                                                        ? new Date(log.clock_out_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                                                        : null;
+                                                    
+                                                    return checkOut ? `${checkIn} - ${checkOut}` : checkIn;
+                                                })()
                                             }
                                             {log.status !== 'Alpha' && " WIB"}
                                         </Text>
@@ -430,17 +464,32 @@ export default function EmployeeHistoryScreen() {
                                     </TouchableOpacity>
                                 )}
 
-                                {/* Photo Thumbnail */}
                                 {log.attendance_photo_url ? (
-                                    <TouchableOpacity
-                                        onPress={() => setSelectedHistoryImage(log.attendance_photo_url || null)}
-                                    >
-                                        <Image
-                                            source={{ uri: log.attendance_photo_url }}
-                                            className="w-10 h-10 rounded-lg bg-gray-200"
-                                            resizeMode="cover"
-                                        />
-                                    </TouchableOpacity>
+                                    <View className="flex-row gap-2">
+                                        <TouchableOpacity
+                                            onPress={() => setSelectedHistoryImage(log.attendance_photo_url || null)}
+                                        >
+                                            <Image
+                                                source={{ uri: log.attendance_photo_url }}
+                                                className="w-10 h-10 rounded-lg bg-gray-200"
+                                                resizeMode="cover"
+                                            />
+                                            <Text className="text-[8px] text-center text-gray-500 mt-1">Masuk</Text>
+                                        </TouchableOpacity>
+
+                                        {log.clock_out_photo_url && (
+                                            <TouchableOpacity
+                                                onPress={() => setSelectedHistoryImage(log.clock_out_photo_url || null)}
+                                            >
+                                                <Image
+                                                    source={{ uri: log.clock_out_photo_url }}
+                                                    className="w-10 h-10 rounded-lg bg-gray-200"
+                                                    resizeMode="cover"
+                                                />
+                                                <Text className="text-[8px] text-center text-gray-500 mt-1">Pulang</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
                                 ) : (
                                     <View className="w-10 h-10" />
                                 )}

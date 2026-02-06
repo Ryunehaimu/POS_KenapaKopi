@@ -91,8 +91,8 @@ export default function ShiftManagementScreen() {
                         try {
                             await shiftService.deleteShift(id);
                             fetchShifts();
-                        } catch (error) {
-                            Alert.alert("Error", "Gagal menghapus shift");
+                        } catch (error: any) {
+                            Alert.alert("Message", error.message || "Gagal menghapus shift");
                         }
                     }
                 }

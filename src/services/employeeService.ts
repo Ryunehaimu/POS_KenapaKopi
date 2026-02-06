@@ -10,16 +10,24 @@ export interface Employee {
 }
 
 export interface AttendanceLog {
-    id: string;
-    employee_id: string;
-    status: 'Masuk' | 'Izin' | 'Sakit' | 'Alpha' | 'Tidak';
-    date: string; // YYYY-MM-DD
-    attendance_photo_url?: string;
-    late_minutes?: number;
-    notes?: string;
-    overtime_minutes?: number;
-    overtime_status?: 'pending' | 'approved' | 'rejected';
-    created_at: string;
+  id: string;
+  employee_id: string;
+  status: 'Masuk' | 'Tidak' | 'Izin' | 'Sakit' | 'Alpha';
+  date: string;
+  attendance_photo_url?: string;
+  clock_out_photo_url?: string;
+  late_minutes?: number;
+  clock_out_at?: string;
+  overtime_minutes?: number;
+  overtime_status?: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  employees?: Employee;
+  shifts?: {
+    name: string;
+    start_time: string;
+    end_time: string;
+  }; 
+  notes?: string;
 }
 
 export const employeeService = {
@@ -187,7 +195,7 @@ export const employeeService = {
 
         const { data: logs, error } = await supabase
             .from("attendance_logs")
-            .select("*")
+            .select("*, shifts(name, start_time, end_time)")
             .eq("employee_id", employeeId)
             .gte("date", startDateStr)
             .lt("date", endDateStr)
