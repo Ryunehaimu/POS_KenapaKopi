@@ -5,7 +5,27 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as XLSX from 'xlsx';
 import { Alert } from "react-native";
 
-export type ReportType = 'ingredient_expense' | 'transaction_report' | 'best_selling_menu' | 'operational_expense' | 'net_revenue';
+export type ReportType = 'ingredient_expense' | 'transaction_report' | 'best_selling_menu' | 'operational_expense' | 'net_revenue' | 'stock_usage' | 'current_stock';
+
+export interface PaginatedResult<T> {
+    data: T[];
+    total: number;
+    totalPages: number;
+    currentPage: number;
+}
+
+interface StockUsageItem {
+    name: string;
+    unit: string;
+    totalUsed: number;
+}
+
+interface CurrentStockItem {
+    name: string;
+    unit: string;
+    currentStock: number;
+    status: 'Safe' | 'Low' | 'Empty';
+}
 
 interface IngredientExpenseItem {
     name: string;
@@ -53,7 +73,7 @@ export const reportService = {
         return { start, end };
     },
 
-    async getIngredientExpenseReport(startDate: Date, endDate: Date): Promise<IngredientExpenseItem[]> {
+    async getIngredientExpenseReport(startDate: Date, endDate: Date, page: number = 1, limit: number = 10): Promise<PaginatedResult<IngredientExpenseItem>> {
         // Fetch all IN logs within period
         const { data, error } = await supabase
             .from('stock_logs')
@@ -81,10 +101,22 @@ export const reportService = {
             item.totalCost += cost;
         });
 
-        return Array.from(map.values()).sort((a, b) => b.totalCost - a.totalCost);
+        const allItems = Array.from(map.values()).sort((a, b) => b.totalCost - a.totalCost);
+
+        // Manual Pagination for Aggregated Data
+        const total = allItems.length;
+        const totalPages = Math.ceil(total / limit);
+        const paginatedData = allItems.slice((page - 1) * limit, page * limit);
+
+        return {
+            data: paginatedData,
+            total,
+            totalPages,
+            currentPage: page
+        };
     },
 
-    async getOperationalExpenseReport(startDate: Date, endDate: Date): Promise<OperationalExpenseItem[]> {
+    async getOperationalExpenseReport(startDate: Date, endDate: Date, page: number = 1, limit: number = 10): Promise<PaginatedResult<OperationalExpenseItem>> {
         const { data, error } = await supabase
             .from('operational_expenses')
             .select('*')
@@ -104,30 +136,56 @@ export const reportService = {
             item.count += 1;
         });
 
-        return Array.from(map.values()).sort((a, b) => b.totalCost - a.totalCost);
+        const allItems = Array.from(map.values()).sort((a, b) => b.totalCost - a.totalCost);
+
+        const total = allItems.length;
+        const totalPages = Math.ceil(total / limit);
+        const paginatedData = allItems.slice((page - 1) * limit, page * limit);
+
+        return {
+            data: paginatedData,
+            total,
+            totalPages,
+            currentPage: page
+        };
     },
 
-    async getTransactionReport(startDate: Date, endDate: Date): Promise<TransactionItem[]> {
-        const { data, error } = await supabase
+    async getTransactionReport(startDate: Date, endDate: Date, page: number = 1, limit: number = 10): Promise<PaginatedResult<TransactionItem>> {
+        // DB Side Pagination
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+
+        const { data, error, count } = await supabase
             .from('orders')
-            .select('*')
+            .select('*', { count: 'exact' })
             .eq('status', 'completed')
             .gte('created_at', startDate.toISOString())
             .lte('created_at', endDate.toISOString())
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .range(from, to);
 
         if (error) throw error;
 
-        return (data || []).map((order: any) => ({
+        const formattedData = (data || []).map((order: any) => ({
             date: new Date(order.created_at).toLocaleString('id-ID'),
             orderId: `#${order.id.slice(0, 5).toUpperCase()}`,
             customerName: order.customer_name || 'Pelanggan',
             paymentMethod: order.payment_method || 'Tunai',
             totalAmount: order.total_amount || 0
         }));
+
+        const total = count || 0;
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            data: formattedData,
+            total,
+            totalPages,
+            currentPage: page
+        };
     },
 
-    async getBestSellingMenuReport(startDate: Date, endDate: Date): Promise<BestSellingItem[]> {
+    async getBestSellingMenuReport(startDate: Date, endDate: Date, page: number = 1, limit: number = 10): Promise<PaginatedResult<BestSellingItem>> {
         // 1. Get Completed Orders
         const { data: orders, error: ordersError } = await supabase
             .from('orders')
@@ -139,7 +197,7 @@ export const reportService = {
         if (ordersError) throw ordersError;
 
         const orderIds = orders?.map(o => o.id) || [];
-        if (orderIds.length === 0) return [];
+        if (orderIds.length === 0) return { data: [], total: 0, totalPages: 0, currentPage: 1 };
 
         // 2. Get Order Items for these orders
         const { data: items, error: itemsError } = await supabase
@@ -167,21 +225,40 @@ export const reportService = {
             entry.totalRevenue += revenue;
         });
 
-        return Array.from(map.values()).sort((a, b) => b.qtySold - a.qtySold);
+        const allItems = Array.from(map.values()).sort((a, b) => b.qtySold - a.qtySold);
+
+        const total = allItems.length;
+        const totalPages = Math.ceil(total / limit);
+        const paginatedData = allItems.slice((page - 1) * limit, page * limit);
+
+        return {
+            data: paginatedData,
+            total,
+            totalPages,
+            currentPage: page
+        };
     },
 
     async getNetRevenueReport(startDate: Date, endDate: Date) {
+        // Net Revenue is always summary, 1 page
+        // ... (keep logic but maybe wrap return if needed, or leave since it's special)
+
+        // ... existing logic ...
         // 1. Get Total Revenue
-        const transactions = await this.getTransactionReport(startDate, endDate);
-        const totalRevenue = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
+        // NOTE: We need full data for aggregation, so we call internal/DB directly or pass high limit?
+        // Let's just do the aggregation calls similar to before.
 
-        // 2. Get Ingredient Expenses
-        const ingExpenses = await this.getIngredientExpenseReport(startDate, endDate);
-        const totalIngExpense = ingExpenses.reduce((sum, i) => sum + i.totalCost, 0);
+        // 1. Get Total Revenue
+        const { data: orders } = await supabase.from('orders').select('total_amount').eq('status', 'completed').gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+        const totalRevenue = orders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
 
-        // 3. Get Operational Expenses
-        const opExpenses = await this.getOperationalExpenseReport(startDate, endDate);
-        const totalOpExpense = opExpenses.reduce((sum, o) => sum + o.totalCost, 0);
+        // 2. Ingredient Expenses
+        const { data: stockLogs } = await supabase.from('stock_logs').select('price').eq('change_type', 'in').gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+        const totalIngExpense = stockLogs?.reduce((sum, s) => sum + (s.price || 0), 0) || 0;
+
+        // 3. Op Expenses
+        const { data: opExpenses } = await supabase.from('operational_expenses').select('price').gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+        const totalOpExpense = opExpenses?.reduce((sum, o) => sum + (o.price || 0), 0) || 0;
 
         // 4. Calculate Net
         const totalExpense = totalIngExpense + totalOpExpense;
@@ -206,6 +283,83 @@ export const reportService = {
         }];
     },
 
+    async getStockUsageReport(startDate: Date, endDate: Date, page: number = 1, limit: number = 10): Promise<PaginatedResult<StockUsageItem>> {
+        const { data, error } = await supabase
+            .from('stock_logs')
+            .select('change_amount, change_type, ingredients(name, unit)')
+            .in('change_type', ['out', 'transaction', 'adjustment']) // Include transaction, manual out, and adjustments
+            .gte('created_at', startDate.toISOString())
+            .lte('created_at', endDate.toISOString());
+
+        if (error) throw error;
+
+        const map = new Map<string, StockUsageItem>();
+
+        data?.forEach((log: any) => {
+            const name = log.ingredients?.name || 'Unknown';
+            const unit = log.ingredients?.unit || '-';
+            const amount = log.change_amount || 0;
+
+            if (!map.has(name)) {
+                map.set(name, { name, unit, totalUsed: 0 });
+            }
+            const item = map.get(name)!;
+            // Usage implies reduction, so we subtract the change amount.
+            // e.g. -50 (Usage) becomes +50 Used.
+            // e.g. +10 (Adjustment Gain) becomes -10 Used.
+            item.totalUsed -= amount;
+        });
+
+        const allItems = Array.from(map.values()).sort((a, b) => b.totalUsed - a.totalUsed);
+
+        const total = allItems.length;
+        const totalPages = Math.ceil(total / limit);
+        const paginatedData = allItems.slice((page - 1) * limit, page * limit);
+
+        return {
+            data: paginatedData,
+            total,
+            totalPages,
+            currentPage: page
+        };
+    },
+
+    async getCurrentStockReport(page: number = 1, limit: number = 10): Promise<PaginatedResult<CurrentStockItem>> {
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+
+        const { data, error, count } = await supabase
+            .from('ingredients')
+            .select('*', { count: 'exact' })
+            .order('name', { ascending: true })
+            .range(from, to);
+
+        if (error) throw error;
+
+        const formattedData = (data || []).map((item: any) => {
+            let status: 'Safe' | 'Low' | 'Empty' = 'Safe';
+            if (item.current_stock <= 0) status = 'Empty';
+            else if (item.current_stock < 5) status = 'Low'; // Threshold could be dynamic
+
+            return {
+                name: item.name,
+                unit: item.unit,
+                currentStock: item.current_stock,
+                status
+            };
+        });
+
+        const total = count || 0;
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            data: formattedData,
+            total,
+            totalPages,
+            currentPage: page
+        };
+    },
+
     async generateExcel(fileName: string, data: any[]) {
         try {
             // 1. Create Worksheet from Data
@@ -220,7 +374,7 @@ export const reportService = {
 
             // 4. Save and Share (Cross-platform)
             const sanitizedName = fileName.replace(/[^a-zA-Z0-9]/g, '_') + '.xlsx';
-            
+
             // Use legacy cast or import to ensure we can write
             const fileUri = (FileSystem.documentDirectory || (FileSystem as any).cacheDirectory) + sanitizedName;
 

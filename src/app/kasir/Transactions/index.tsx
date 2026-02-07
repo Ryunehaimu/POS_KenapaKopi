@@ -178,13 +178,13 @@ export default function TransactionsScreen() {
         setPaymentModalVisible(true);
     };
 
-    const confirmPayment = async (amount: number, method: 'cash' | 'qris', discount: number, cashReceived?: number, change?: number) => {
+    const confirmPayment = async (amount: number, method: 'cash' | 'qris', discount: number, cashReceived?: number, change?: number, discountType?: 'percent' | 'nominal', discountRate?: number) => {
         if (!selectedUnpaidOrder?.id) return;
         try {
             setProcessingPayment(true);
 
             // 1. Update Order Status
-            await orderService.payOrder(selectedUnpaidOrder.id, method, amount, discount);
+            await orderService.payOrder(selectedUnpaidOrder.id, method, amount, discount, discountType, discountRate);
 
             // Payment Successful - Update UI first
             setPaymentModalVisible(false);

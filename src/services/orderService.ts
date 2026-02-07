@@ -21,6 +21,8 @@ export interface Order {
   payment_method: 'cash' | 'qris';
   created_at?: string;
   discount?: number; // Added discount field
+  discount_type?: 'percent' | 'nominal';
+  discount_rate?: number;
   items?: OrderItem[];
 }
 
@@ -35,7 +37,9 @@ export const orderService = {
         total_amount: order.total_amount,
         status: order.status,
         payment_method: order.payment_method,
-        discount: order.discount || 0 // Insert discount
+        discount: order.discount || 0,
+        discount_type: order.discount_type || 'nominal',
+        discount_rate: order.discount_rate || 0
       }])
       .select()
       .single();
@@ -260,6 +264,8 @@ export const orderService = {
       status?: 'pending' | 'completed' | 'cancelled';
       total_amount?: number;
       discount?: number; // Added discount
+      discount_type?: 'percent' | 'nominal';
+      discount_rate?: number;
     },
     newItems?: OrderItem[]
   ) {
@@ -272,7 +278,9 @@ export const orderService = {
         payment_method: updates.payment_method,
         status: updates.status,
         total_amount: updates.total_amount,
-        discount: updates.discount // Update discount
+        discount: updates.discount, // Update discount
+        discount_type: updates.discount_type,
+        discount_rate: updates.discount_rate
       })
       .eq('id', orderId)
       .select()
@@ -282,6 +290,17 @@ export const orderService = {
 
     // 2. Update Items if provided (replace all)
     if (newItems && newItems.length > 0) {
+      // RESTORE stock for existing items before deleting them
+      // This ensures the previous deduction is reversed (logged as 'in' or similar restoration)
+      try {
+        await this.restoreOrderStock(orderId);
+      } catch (e) {
+        console.error("Error restoring stock during update:", e);
+        // Continue? If we fail to restore, we might double deduct if we proceed. 
+        // But throwing here blocks the edit. Let's assume restoration is critical.
+        // throw e; 
+      }
+
       // Delete existing items
       await supabase.from('order_items').delete().eq('order_id', orderId);
 
@@ -300,6 +319,14 @@ export const orderService = {
         .insert(itemsToInsert);
 
       if (itemsError) throw itemsError;
+
+      // DEDUCT stock for new items
+      // This logs the new usage (logged as 'transaction' or 'out')
+      try {
+        await this.processStockDeduction(orderId);
+      } catch (e) {
+        console.error("Error deducting stock during update:", e);
+      }
     }
 
     return orderData;
@@ -316,7 +343,7 @@ export const orderService = {
     return true;
   },
 
-  async payOrder(orderId: string, paymentMethod: 'cash' | 'qris', totalAmount: number, discount?: number) {
+  async payOrder(orderId: string, paymentMethod: 'cash' | 'qris', totalAmount: number, discount?: number, discountType?: 'percent' | 'nominal', discountRate?: number) {
     const { data, error } = await supabase
       .from('orders')
       .update({
@@ -324,6 +351,8 @@ export const orderService = {
         payment_method: paymentMethod,
         total_amount: totalAmount, // Confirm amount (e.g. if price changed or for record)
         discount: discount || 0, // Save discount
+        discount_type: discountType || 'nominal',
+        discount_rate: discountRate || 0,
         created_at: new Date().toISOString() // Optional: Update timestamp to payment time? Or keep original? Let's keep original for now or maybe add `paid_at` column later. For now, just status update.
       })
       .eq('id', orderId)

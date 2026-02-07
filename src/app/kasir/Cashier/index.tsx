@@ -272,7 +272,9 @@ export default function CashierScreen() {
         paymentMethod: 'cash' | 'qris',
         discount: number,
         cashReceived?: number,
-        change?: number
+        change?: number,
+        discountType?: 'percent' | 'nominal',
+        discountRate?: number
     ) => {
         try {
             setProcessing(true);
@@ -291,7 +293,9 @@ export default function CashierScreen() {
                 status: 'completed',
                 payment_method: paymentMethod,
                 note: note, // Pass the note
-                discount: discount // Pass the discount
+                discount: discount, // Pass the discount
+                discount_type: discountType,
+                discount_rate: discountRate
             }, orderItems);
 
             // Trigger Stock Deduction (Async, don't block UI success)

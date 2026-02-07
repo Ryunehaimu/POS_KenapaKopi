@@ -7,7 +7,15 @@ interface PaymentModalProps {
   visible: boolean;
   onClose: () => void;
   subtotal: number;
-  onConfirm: (finalAmount: number, paymentMethod: 'cash' | 'qris', discount: number, cashReceived?: number, change?: number) => Promise<void>;
+  onConfirm: (
+    finalAmount: number,
+    paymentMethod: 'cash' | 'qris',
+    discount: number,
+    cashReceived?: number,
+    change?: number,
+    discountType?: 'percent' | 'nominal',
+    discountRate?: number
+  ) => Promise<void>;
   loading: boolean;
 }
 
@@ -60,7 +68,9 @@ export const PaymentModal = ({ visible, onClose, subtotal, onConfirm, loading }:
       paymentMethod,
       discountAmount,
       paymentMethod === 'cash' ? cashReceivedNum : undefined,
-      paymentMethod === 'cash' ? change : undefined
+      paymentMethod === 'cash' ? change : undefined,
+      discountType,
+      discountType === 'percent' ? rawDiscountValue : 0
     );
   };
 

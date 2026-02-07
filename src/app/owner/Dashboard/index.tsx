@@ -4,6 +4,10 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Home, FileText, UserCheck, LogOut, ChevronRight } from 'lucide-react-native';
+import { inventoryService, Ingredient } from '../../../services/inventoryService';
+import { shiftService, Shift } from '../../../services/shiftService';
+import * as Print from 'expo-print';
+import { TrendingUp, Printer, ChevronDown } from 'lucide-react-native';
 import { authService } from '../../../services/authService';
 import OwnerBottomNav from '../../../components/OwnerBottomNav';
 import { orderService } from '../../../services/orderService';
@@ -30,6 +34,9 @@ export default function OwnerDashboard() {
     total_transactions: number;
     cash_revenue: number;
     qris_revenue: number;
+    gojek_revenue: number;
+    grab_revenue: number;
+    shopee_revenue: number;
     menu_sales: {
       product_name: string;
       quantity_sold: number;
@@ -40,6 +47,9 @@ export default function OwnerDashboard() {
     total_transactions: 0,
     cash_revenue: 0,
     qris_revenue: 0,
+    gojek_revenue: 0,
+    grab_revenue: 0,
+    shopee_revenue: 0,
     menu_sales: []
   });
 
@@ -60,6 +70,11 @@ export default function OwnerDashboard() {
     menu_sales: []
   });
 
+  // Shift State
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [selectedShift, setSelectedShift] = useState<string>('today');
+  const [shiftDropdownOpen, setShiftDropdownOpen] = useState(false);
+
   // Attendance State
   const [attendanceCount, setAttendanceCount] = useState(0);
   const [totalEmployees, setTotalEmployees] = useState(0); // Optional: to show /Total
@@ -67,7 +82,7 @@ export default function OwnerDashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       // 0. Check User Role
       const { session } = await authService.getSession();
       const email = session?.user?.email || "";
@@ -77,7 +92,33 @@ export default function OwnerDashboard() {
       const now = new Date();
 
       // 1. Daily One-Time Data
-      const statsData = await orderService.getDailyReport(now);
+      // 1. Fetch Shifts
+      const shiftsData = await shiftService.getShifts();
+      setShifts(shiftsData);
+
+      // 2. Daily Stats with Shift Logic
+      let statsData;
+      if (selectedShift === 'today') {
+        statsData = await orderService.getDailyReport(now);
+      } else {
+        const selectedShiftData = shiftsData.find(s => s.id === selectedShift);
+        if (selectedShiftData) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const [startHour, startMinute] = selectedShiftData.start_time.split(':').map(Number);
+          const [endHour, endMinute] = selectedShiftData.end_time.split(':').map(Number);
+
+          const startTime = new Date(today);
+          startTime.setHours(startHour, startMinute, 0, 0);
+
+          const endTime = new Date(today);
+          endTime.setHours(endHour, endMinute, 0, 0);
+
+          statsData = await orderService.getShiftReport(startTime, endTime);
+        } else {
+          statsData = await orderService.getDailyReport(now);
+        }
+      }
       setDailyStats(statsData);
 
       // 2. Monthly Revenue
@@ -109,8 +150,46 @@ export default function OwnerDashboard() {
     useCallback(() => {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
       loadData();
-    }, [])
+    }, [selectedShift]) // Reload when shift changes
   );
+
+  const printShiftReport = async () => {
+    const selectedShiftData = shifts.find(s => s.id === selectedShift);
+    const shiftLabel = selectedShift === 'today'
+      ? 'Hari Ini (Semua)'
+      : selectedShiftData
+        ? `${selectedShiftData.name} (${selectedShiftData.start_time.slice(0, 5)} - ${selectedShiftData.end_time.slice(0, 5)})`
+        : 'Shift';
+
+    const reportContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial; padding: 20px; }
+            h1 { text-align: center; }
+            .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+            .total { font-weight: bold; font-size: 24px; }
+          </style>
+        </head>
+        <body>
+          <h1>Laporan Penjualan (Owner)</h1>
+          <h3>${shiftLabel} - ${new Date().toLocaleDateString('id-ID')}</h3>
+          <hr/>
+          <div class="row"><span>Tunai:</span><span>Rp ${dailyStats.cash_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>QRIS:</span><span>Rp ${dailyStats.qris_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>Gojek:</span><span>Rp ${dailyStats.gojek_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>Grab:</span><span>Rp ${dailyStats.grab_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>Shopee:</span><span>Rp ${dailyStats.shopee_revenue.toLocaleString()}</span></div>
+          <hr/>
+          <div class="row total"><span>TOTAL:</span><span>Rp ${dailyStats.total_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>Transaksi:</span><span>${dailyStats.total_transactions}</span></div>
+        </body>
+      </html>
+    `;
+    await Print.printAsync({ html: reportContent });
+  };
+
+
 
 
 
@@ -136,38 +215,111 @@ export default function OwnerDashboard() {
 
         {/* 2. SUMMARY CARDS (Overlapping Header) */}
         <View className="px-6 -mt-16">
-          <View className="flex-row gap-4 mb-4">
+
+          {/* Detailed Revenue Card (Like Cashier) - HIDDEN FOR CAPTAIN */}
+          {userRole === 'owner' ? (
+            <View className="bg-white rounded-xl shadow-sm p-4 mb-4 z-50">
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-gray-500 text-sm font-medium">Pendapatan Transaksi</Text>
+                <View className="flex-row items-center gap-2">
+                  <TouchableOpacity
+                    onPress={printShiftReport}
+                    className="bg-indigo-600 px-3 py-1 rounded-lg flex-row items-center"
+                  >
+                    <Printer color="white" size={14} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setShiftDropdownOpen(!shiftDropdownOpen)}
+                    className="bg-gray-50 px-3 py-1 rounded-lg border border-gray-200 flex-row items-center"
+                  >
+                    <Text className="text-xs font-medium text-gray-700 mr-1">
+                      {selectedShift === 'today'
+                        ? 'Hari Ini'
+                        : shifts.find(s => s.id === selectedShift)?.name || 'Shift'}
+                    </Text>
+                    <ChevronDown size={12} color="gray" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {shiftDropdownOpen && (
+                <View className="absolute right-4 top-12 bg-white rounded-lg shadow-lg border border-gray-200 z-50 min-w-[150px]">
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedShift('today');
+                      setShiftDropdownOpen(false);
+                    }}
+                    className={`px-4 py-3 border-b border-gray-100 ${selectedShift === 'today' ? 'bg-indigo-50' : ''}`}
+                  >
+                    <Text className={`text-sm ${selectedShift === 'today' ? 'text-indigo-600 font-bold' : 'text-gray-700'}`}>
+                      Hari Ini (Semua)
+                    </Text>
+                  </TouchableOpacity>
+                  {shifts.map((shift) => (
+                    <TouchableOpacity
+                      key={shift.id}
+                      onPress={() => {
+                        setSelectedShift(shift.id);
+                        setShiftDropdownOpen(false);
+                      }}
+                      className={`px-4 py-3 border-b border-gray-100 ${selectedShift === shift.id ? 'bg-indigo-50' : ''}`}
+                    >
+                      <Text className={`text-sm ${selectedShift === shift.id ? 'text-indigo-600 font-bold' : 'text-gray-700'}`}>
+                        {shift.name}
+                      </Text>
+                      <Text className="text-xs text-gray-400">
+                        {shift.start_time.slice(0, 5)} - {shift.end_time.slice(0, 5)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <View className="flex-row justify-between items-end mb-4">
+                <Text className="text-3xl font-bold text-gray-900">Rp {dailyStats.total_revenue.toLocaleString('id-ID')}</Text>
+                <View className="flex-row items-center gap-1 bg-green-50 px-2 py-1 rounded-lg">
+                  <TrendingUp color="green" size={12} />
+                  <Text className="text-xs font-bold text-green-700">Total</Text>
+                </View>
+              </View>
+
+              <View className="flex-row flex-wrap gap-2">
+                <View className="bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                  <Text className="text-[10px] text-gray-500">Tunai</Text>
+                  <Text className="text-xs font-bold text-gray-800">Rp {dailyStats.cash_revenue.toLocaleString('id-ID')}</Text>
+                </View>
+                <View className="bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                  <Text className="text-[10px] text-gray-500">QRIS</Text>
+                  <Text className="text-xs font-bold text-gray-800">Rp {dailyStats.qris_revenue.toLocaleString('id-ID')}</Text>
+                </View>
+                <View className="bg-green-50 px-2 py-1 rounded border border-green-100">
+                  <Text className="text-[10px] text-green-600">Gojek</Text>
+                  <Text className="text-xs font-bold text-green-700">Rp {dailyStats.gojek_revenue.toLocaleString('id-ID')}</Text>
+                </View>
+                <View className="bg-green-50 px-2 py-1 rounded border border-green-100">
+                  <Text className="text-[10px] text-green-600">Grab</Text>
+                  <Text className="text-xs font-bold text-green-700">Rp {dailyStats.grab_revenue.toLocaleString('id-ID')}</Text>
+                </View>
+                <View className="bg-orange-50 px-2 py-1 rounded border border-orange-100">
+                  <Text className="text-[10px] text-orange-600">Shopee</Text>
+                  <Text className="text-xs font-bold text-orange-700">Rp {dailyStats.shopee_revenue.toLocaleString('id-ID')}</Text>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View className="bg-white/10 rounded-xl p-4 mb-4 border-2 border-dashed border-white/30 justify-center items-center">
+              <Text className="text-white font-bold opacity-80">Pendapatan Hidden</Text>
+            </View>
+          )}
+
+          <View className="flex-row gap-4 mb-8">
             {/* Card 1: Transaksi Hari Ini */}
             <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
               <Text className="text-blue-600 text-2xl font-bold">{dailyStats.total_transactions}</Text>
               <Text className="text-gray-400 text-xs">Transaksi Hari Ini</Text>
             </View>
 
-            {/* Card 2: Pendapatan Hari Ini (HIDDEN FOR CAPTAIN) */}
-            {userRole === 'owner' ? (
-              <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
-                <Text className="text-indigo-600 text-xl font-bold">
-                  Rp. {dailyStats.total_revenue.toLocaleString('id-ID')}
-                </Text>
-                <View className="mt-2 space-y-1">
-                  <Text className="text-[10px] text-gray-500">
-                    Tunai: Rp {dailyStats.cash_revenue.toLocaleString('id-ID')}
-                  </Text>
-                  <Text className="text-[10px] text-gray-500">
-                    QRIS : Rp {dailyStats.qris_revenue.toLocaleString('id-ID')}
-                  </Text>
-                </View>
-                <Text className="text-gray-400 text-xs mt-2 font-medium">Pendapatan Hari ini</Text>
-              </View>
-            ) : (
-               <View className="flex-1 p-4 rounded-xl justify-center items-center border-2 border-dashed border-gray-300/50">
-                  <Text className="text-gray-100 font-bold text-xs text-center opacity-80">Pendapatan Hidden</Text>
-               </View>
-            )}
-          </View>
-
-          <View className="flex-row gap-4 mb-8">
-            {/* Card 3: Pegawai Masuk */}
+            {/* Card 3: Pegawai Masuk - Moved here to balance row */}
             <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
               <Text className="text-indigo-600 text-2xl font-bold">
                 {attendanceCount}
@@ -175,27 +327,21 @@ export default function OwnerDashboard() {
               </Text>
               <Text className="text-gray-400 text-xs mt-1">Pegawai Masuk</Text>
             </View>
+          </View>
 
+          <View className="flex-row gap-4 mb-8">
             {/* Card 4: Pendapatan Bulan Ini (HIDDEN FOR CAPTAIN) */}
             {userRole === 'owner' ? (
               <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
                 <Text className="text-indigo-600 text-xl font-bold" numberOfLines={1}>
                   Rp. {monthlyStats.total_revenue.toLocaleString('id-ID')}
                 </Text>
-                <View className="mt-2 space-y-1">
-                  <Text className="text-[10px] text-gray-500">
-                    Tunai: Rp {monthlyStats.cash_revenue.toLocaleString('id-ID')}
-                  </Text>
-                  <Text className="text-[10px] text-gray-500">
-                    QRIS : Rp {monthlyStats.qris_revenue.toLocaleString('id-ID')}
-                  </Text>
-                </View>
                 <Text className="text-gray-400 text-xs mt-2 font-medium">Pendapatan Bulan Ini</Text>
               </View>
             ) : (
-                <View className="flex-1 p-4 rounded-xl justify-center items-center border-2 border-dashed border-gray-300">
-                   <Text className="text-gray-400 text-xs text-center font-medium">Pendapatan Hidden</Text>
-                </View>
+              <View className="flex-1 p-4 rounded-xl justify-center items-center border-2 border-dashed border-gray-300">
+                <Text className="text-gray-400 text-xs text-center font-medium">Pendapatan Hidden</Text>
+              </View>
             )}
           </View>
 
@@ -203,10 +349,10 @@ export default function OwnerDashboard() {
           <Text className="text-gray-400 text-lg font-medium mb-4">Menu</Text>
           <View className="flex-row flex-wrap justify-between gap-y-4">
             {MENU_ITEMS.filter(item => {
-                if (userRole === 'captain') {
-                    return item.name === 'Pegawai' || item.name === 'Approve Overtime';
-                }
-                return true;
+              if (userRole === 'captain') {
+                return item.name === 'Pegawai' || item.name === 'Approve Overtime';
+              }
+              return true;
             }).map((item, index) => (
               <TouchableOpacity
                 key={index}

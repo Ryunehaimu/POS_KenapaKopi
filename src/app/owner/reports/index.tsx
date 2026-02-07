@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, ChevronDown, Download, Calendar } from 'lucide-react-native';
+import { ChevronLeft, ChevronDown, Download, Calendar, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import OwnerBottomNav from '../../../components/OwnerBottomNav';
 import { reportService, ReportType } from '../../../services/reportService';
@@ -11,7 +11,9 @@ const REPORT_TYPES: { label: string; value: ReportType }[] = [
     { label: 'Laporan Transaksi', value: 'transaction_report' },
     { label: 'Menu Terlaris', value: 'best_selling_menu' },
     { label: 'Pengeluaran Bahan', value: 'ingredient_expense' },
-    { label: 'Pengeluaran Operasional', value: 'operational_expense' }
+    { label: 'Pengeluaran Operasional', value: 'operational_expense' },
+    { label: 'Stok Terpakai', value: 'stock_usage' },
+    { label: 'Stok Tersedia', value: 'current_stock' }
 ];
 
 const MONTHS = [
@@ -23,6 +25,12 @@ export default function ReportsScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<any[]>([]);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const itemsPerPage = 10;
 
     // Filters
     const [selectedType, setSelectedType] = useState<ReportType>('net_revenue');
@@ -42,6 +50,11 @@ export default function ReportsScreen() {
 
     useEffect(() => {
         loadData();
+    }, [selectedType, startMonth, startYear, endMonth, endYear, currentPage]);
+
+    // Reset page on filter change
+    useEffect(() => {
+        setCurrentPage(1);
     }, [selectedType, startMonth, startYear, endMonth, endYear]);
 
     const loadData = async () => {
@@ -52,19 +65,38 @@ export default function ReportsScreen() {
             const startDate = new Date(startYear, startMonth, 1);
             const endDate = new Date(endYear, endMonth + 1, 0, 23, 59, 59);
 
-            let result: any[] = [];
-            if (selectedType === 'ingredient_expense') {
-                result = await reportService.getIngredientExpenseReport(startDate, endDate);
-            } else if (selectedType === 'best_selling_menu') {
-                result = await reportService.getBestSellingMenuReport(startDate, endDate);
-            } else if (selectedType === 'operational_expense') {
-                result = await reportService.getOperationalExpenseReport(startDate, endDate);
-            } else if (selectedType === 'transaction_report') {
-                result = await reportService.getTransactionReport(startDate, endDate);
-            } else if (selectedType === 'net_revenue') {
-                result = await reportService.getNetRevenueReport(startDate, endDate);
+            let result: any; // Type is PaginatedResult<T> | T[] (for legacy/net revenue)
+
+            if (selectedType === 'net_revenue') {
+                // Net Revenue is special, returns array directly
+                const netData = await reportService.getNetRevenueReport(startDate, endDate);
+                setData(netData);
+                setTotalPages(1);
+                setTotalItems(netData.length);
+                return;
             }
-            setData(result);
+
+            // Paginated Reports
+            if (selectedType === 'ingredient_expense') {
+                result = await reportService.getIngredientExpenseReport(startDate, endDate, currentPage, itemsPerPage);
+            } else if (selectedType === 'best_selling_menu') {
+                result = await reportService.getBestSellingMenuReport(startDate, endDate, currentPage, itemsPerPage);
+            } else if (selectedType === 'operational_expense') {
+                result = await reportService.getOperationalExpenseReport(startDate, endDate, currentPage, itemsPerPage);
+            } else if (selectedType === 'transaction_report') {
+                result = await reportService.getTransactionReport(startDate, endDate, currentPage, itemsPerPage);
+            } else if (selectedType === 'stock_usage') {
+                result = await reportService.getStockUsageReport(startDate, endDate, currentPage, itemsPerPage);
+            } else if (selectedType === 'current_stock') {
+                // Current Stock doesn't strictly need Date range but interface might expect it or we ignore it
+                result = await reportService.getCurrentStockReport(currentPage, itemsPerPage);
+            }
+
+            if (result) {
+                setData(result.data);
+                setTotalPages(result.totalPages);
+                setTotalItems(result.total);
+            }
         } catch (error) {
             console.error(error);
             Alert.alert("Error", "Gagal memuat data laporan");
@@ -231,6 +263,52 @@ export default function ReportsScreen() {
                         </tbody>
                     </table>
                 `;
+            } else if (selectedType === 'stock_usage') {
+                html = `
+                    <h3>Laporan Stok Terpakai</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nama Bahan</th>
+                                <th>Satuan</th>
+                                <th class="text-right">Total Terpakai</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map((item: any) => `
+                                <tr>
+                                    <td>${item.name || '-'}</td>
+                                    <td>${item.unit || '-'}</td>
+                                    <td class="text-right">${item.totalUsed || 0}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else if (selectedType === 'current_stock') {
+                html = `
+                    <h3>Laporan Stok Tersedia</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nama Bahan</th>
+                                <th>Satuan</th>
+                                <th class="text-right">Stok Saat Ini</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map((item: any) => `
+                                <tr>
+                                    <td>${item.name || '-'}</td>
+                                    <td>${item.unit || '-'}</td>
+                                    <td class="text-right">${item.currentStock || 0}</td>
+                                    <td>${item.status}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
             }
 
             await reportService.generatePDF(
@@ -385,13 +463,19 @@ export default function ReportsScreen() {
                                     <Text className="flex-[2] font-bold text-gray-500 text-xs text-left">
                                         {selectedType === 'best_selling_menu' ? 'Nama Menu' : 'Nama Item'}
                                     </Text>
-                                    {selectedType === 'ingredient_expense' && (
+                                    {selectedType === 'ingredient_expense' || selectedType === 'stock_usage' || selectedType === 'current_stock' ? (
                                         <Text className="flex-1 font-bold text-gray-500 text-xs text-left">Unit</Text>
-                                    )}
+                                    ) : null}
+
                                     <Text className="flex-1 font-bold text-gray-500 text-xs text-center">
-                                        {selectedType === 'ingredient_expense' ? 'Qty' : (selectedType === 'best_selling_menu' ? 'Terjual' : 'Freq')}
+                                        {selectedType === 'ingredient_expense' ? 'Qty' :
+                                            selectedType === 'best_selling_menu' ? 'Terjual' :
+                                                selectedType === 'stock_usage' ? 'Terpakai' :
+                                                    selectedType === 'current_stock' ? 'Status' : 'Freq'}
                                     </Text>
-                                    <Text className="flex-[1.5] font-bold text-gray-500 text-xs text-right">Total</Text>
+                                    <Text className="flex-[1.5] font-bold text-gray-500 text-xs text-right">
+                                        {selectedType === 'stock_usage' || selectedType === 'current_stock' ? 'Jml' : 'Total'}
+                                    </Text>
                                 </>
                             )}
                         </View>
@@ -434,19 +518,31 @@ export default function ReportsScreen() {
                                                 {selectedType === 'best_selling_menu' && <Text className="text-[10px] text-gray-400">{item.category}</Text>}
                                             </View>
 
-                                            {selectedType === 'ingredient_expense' && (
+                                            {(selectedType === 'ingredient_expense' || selectedType === 'stock_usage' || selectedType === 'current_stock') && (
                                                 <Text className="flex-1 text-gray-600 text-xs">{item.unit || '-'}</Text>
                                             )}
 
                                             <Text className="flex-1 text-gray-600 text-xs text-center">
                                                 {selectedType === 'ingredient_expense' ? (item.totalAmount ?? 0)
-                                                    : (selectedType === 'best_selling_menu' ? (item.qtySold ?? 0)
-                                                        : `${item.count ?? 0}x`)}
+                                                    : selectedType === 'best_selling_menu' ? (item.qtySold ?? 0)
+                                                        : selectedType === 'stock_usage' ? ''
+                                                            : selectedType === 'current_stock' ? item.status
+                                                                : `${item.count ?? 0}x`}
                                             </Text>
 
-                                            <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
-                                                Rp {(item.totalCost ?? item.totalRevenue ?? 0).toLocaleString('id-ID')}
-                                            </Text>
+                                            {selectedType === 'stock_usage' ? (
+                                                <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
+                                                    {item.totalUsed}
+                                                </Text>
+                                            ) : selectedType === 'current_stock' ? (
+                                                <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
+                                                    {item.currentStock}
+                                                </Text>
+                                            ) : (
+                                                <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
+                                                    Rp {(item.totalCost ?? item.totalRevenue ?? 0).toLocaleString('id-ID')}
+                                                </Text>
+                                            )}
                                         </>
                                     )}
                                 </View>
@@ -454,7 +550,7 @@ export default function ReportsScreen() {
                         )}
 
                         {/* Footer Totals */}
-                        {data.length > 0 && selectedType !== 'net_revenue' && (
+                        {data.length > 0 && selectedType !== 'net_revenue' && selectedType !== 'stock_usage' && selectedType !== 'current_stock' && (
                             <View className="bg-indigo-50 p-3 flex-row justify-between items-center border-t border-indigo-100">
                                 <Text className="font-bold text-indigo-900">Total</Text>
                                 <Text className="font-bold text-indigo-900 text-base">
@@ -462,6 +558,31 @@ export default function ReportsScreen() {
                                 </Text>
                             </View>
                         )}
+                    </View>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && !loading && (
+                    <View className="flex-row justify-center items-center gap-4 mb-8">
+                        <TouchableOpacity
+                            onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className={`p-2 rounded-full border ${currentPage === 1 ? 'border-gray-200 bg-gray-50' : 'border-indigo-200 bg-white'}`}
+                        >
+                            <ChevronLeft size={20} color={currentPage === 1 ? '#d1d5db' : '#4f46e5'} />
+                        </TouchableOpacity>
+
+                        <Text className="text-gray-600 font-medium">
+                            Halaman {currentPage} dari {totalPages}
+                        </Text>
+
+                        <TouchableOpacity
+                            onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className={`p-2 rounded-full border ${currentPage === totalPages ? 'border-gray-200 bg-gray-50' : 'border-indigo-200 bg-white'}`}
+                        >
+                            <ChevronRight size={20} color={currentPage === totalPages ? '#d1d5db' : '#4f46e5'} />
+                        </TouchableOpacity>
                     </View>
                 )}
             </ScrollView>

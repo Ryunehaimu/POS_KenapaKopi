@@ -21,6 +21,7 @@ export default function EditTransactionScreen() {
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
     const [status, setStatus] = useState<'pending' | 'completed' | 'cancelled'>('completed');
     const [discount, setDiscount] = useState(''); // Added discount state
+    const [discountType, setDiscountType] = useState<'percent' | 'nominal'>('nominal');
     const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
 
     // Add product modal
@@ -49,7 +50,12 @@ export default function EditTransactionScreen() {
             setCustomerName(orderData.customer_name);
             setPaymentMethod(orderData.payment_method);
             setStatus(orderData.status);
-            setDiscount(orderData.discount ? formatRupiah(orderData.discount, 'Rp ') : ''); // Load discount formatted
+            setDiscountType(orderData.discount_type || 'nominal');
+            if (orderData.discount_type === 'percent') {
+                setDiscount(orderData.discount_rate ? orderData.discount_rate.toString() : '');
+            } else {
+                setDiscount(orderData.discount ? formatRupiah(orderData.discount, 'Rp ') : '');
+            }
             setOriginalStatus(orderData.status); // Track original status
 
             // Map order items
@@ -74,7 +80,15 @@ export default function EditTransactionScreen() {
 
     const calculateTotal = () => {
         const subtotal = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
-        const discountVal = parseRupiah(discount);
+        let discountVal = 0;
+
+        if (discountType === 'percent') {
+            const rate = parseFloat(discount || '0');
+            discountVal = (Math.min(rate, 100) / 100) * subtotal;
+        } else {
+            discountVal = parseRupiah(discount);
+        }
+
         return Math.max(0, subtotal - discountVal);
     };
 
@@ -141,8 +155,12 @@ export default function EditTransactionScreen() {
                     customer_name: customerName,
                     payment_method: paymentMethod,
                     status: status,
-                    total_amount: calculateTotal(),
-                    discount: parseRupiah(discount), // Save discount
+                    total_amount: calculateTotal(), // Add total_amount
+                    discount: calculateTotal() < orderItems.reduce((sum, item) => sum + item.subtotal, 0)
+                        ? (orderItems.reduce((sum, item) => sum + item.subtotal, 0) - calculateTotal())
+                        : 0, // Store calculated nominal discount
+                    discount_type: discountType,
+                    discount_rate: discountType === 'percent' ? parseFloat(discount || '0') : 0
                 },
                 orderItems
             );
@@ -292,14 +310,40 @@ export default function EditTransactionScreen() {
                             </View>
 
                             <View className="mb-4">
-                                <Text className="text-gray-500 text-sm mb-2">Diskon (Rp)</Text>
+                                <View className="flex-row justify-between mb-2">
+                                    <Text className="text-gray-500 text-sm">Diskon</Text>
+                                    <View className="flex-row bg-gray-100 rounded-lg p-1">
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                setDiscountType('nominal');
+                                                setDiscount('');
+                                            }}
+                                            className={`px-3 py-1 rounded-md ${discountType === 'nominal' ? 'bg-white shadow-sm' : ''}`}
+                                        >
+                                            <Text className={`text-xs font-bold ${discountType === 'nominal' ? 'text-indigo-600' : 'text-gray-500'}`}>Rp</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                setDiscountType('percent');
+                                                setDiscount('');
+                                            }}
+                                            className={`px-3 py-1 rounded-md ${discountType === 'percent' ? 'bg-white shadow-sm' : ''}`}
+                                        >
+                                            <Text className={`text-xs font-bold ${discountType === 'percent' ? 'text-indigo-600' : 'text-gray-500'}`}>%</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                                 <TextInput
                                     value={discount}
                                     onChangeText={(text) => {
-                                        const numeric = text.replace(/[^0-9]/g, '');
-                                        setDiscount(formatRupiah(numeric, 'Rp '));
+                                        if (discountType === 'percent') {
+                                            setDiscount(text.replace(/[^0-9.]/g, ''));
+                                        } else {
+                                            const numeric = text.replace(/[^0-9]/g, '');
+                                            setDiscount(formatRupiah(numeric, 'Rp '));
+                                        }
                                     }}
-                                    placeholder="Rp 0"
+                                    placeholder={discountType === 'percent' ? "0%" : "Rp 0"}
                                     keyboardType="numeric"
                                     className="border border-indigo-200 rounded-lg p-2 text-right font-medium text-gray-700 bg-indigo-50"
                                 />
@@ -347,7 +391,7 @@ export default function EditTransactionScreen() {
                             <View className="flex-row justify-between mb-4 pb-4 border-b border-indigo-500">
                                 <Text className="text-indigo-200 text-sm">Potongan Diskon</Text>
                                 <Text className="text-red-300 font-bold">
-                                    - Rp {parseFloat(discount || '0').toLocaleString()}
+                                    - Rp {(orderItems.reduce((sum, item) => sum + item.subtotal, 0) - calculateTotal()).toLocaleString()}
                                 </Text>
                             </View>
 
