@@ -14,7 +14,7 @@ export interface StockLog {
   ingredient_id: string;
   change_amount: number;
   current_stock_snapshot: number;
-  price: number;
+  price: number | null;
   change_type: 'in' | 'out' | 'adjustment';
   notes?: string;
   created_at: string;
@@ -101,10 +101,11 @@ export const inventoryService = {
     return data as Ingredient;
   },
 
-  async addStock(id: string, amount: number, price: number) {
+  async addStock(id: string, amount: number, price: number | null) {
     // 1. Get current stock
     const ingredient = await this.getIngredientById(id);
-    const newStock = (ingredient.current_stock || 0) + amount;
+    const stockBefore = ingredient.current_stock || 0;
+    const newStock = stockBefore + amount;
 
     // 2. Update ingredient
     const { error: updateError } = await supabase
@@ -114,7 +115,13 @@ export const inventoryService = {
 
     if (updateError) throw updateError;
 
-    // 3. Log it
+    // 3. Generate notes
+    const priceText = price !== null 
+      ? `Rp ${price.toLocaleString('id-ID')}` 
+      : '0 (Kasir tidak tahu harga)';
+    const notes = `${ingredient.name}: ${stockBefore} + ${amount} = ${newStock} ${ingredient.unit}. Harga: ${priceText}`;
+
+    // 4. Log it
     const { error: logError } = await supabase
       .from('stock_logs')
       .insert([{
@@ -122,7 +129,8 @@ export const inventoryService = {
         change_amount: amount,
         current_stock_snapshot: newStock,
         price: price,
-        change_type: 'in'
+        change_type: 'in',
+        notes: notes
       }]);
 
     if (logError) throw logError;

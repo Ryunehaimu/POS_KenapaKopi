@@ -37,15 +37,16 @@ export default function AddStockScreen() {
         return;
     }
 
-    const priceVal = parseFloat(price);
-    if (isNaN(priceVal) || priceVal <= 0) {
+    // Harga opsional - jika kosong, simpan null
+    const priceVal = price.trim() ? parseFloat(price) : null;
+    if (priceVal !== null && (isNaN(priceVal) || priceVal <= 0)) {
         Alert.alert('Eror', 'Harga harus angka positif lebih dari 0');
         return;
     }
 
     try {
       setLoading(true);
-      await inventoryService.addStock(id as string, parseFloat(amount), parseFloat(price));
+      await inventoryService.addStock(id as string, parseFloat(amount), priceVal);
       Alert.alert('Sukses', 'Stok berhasil ditambahkan', [
         { text: 'OK', onPress: () => router.back() }
       ]);
@@ -67,10 +68,10 @@ export default function AddStockScreen() {
       autoFocus: true
     },
     {
-      label: "Harga Beli Stok Saat Ini (Total)",
+      label: "Harga Beli Stok (Total) - Opsional",
       value: price,
       onChangeText: setPrice,
-      placeholder: "Rp 0",
+      placeholder: "Kosongkan jika tidak tahu harga",
       keyboardType: 'numeric'
     }
   ];
