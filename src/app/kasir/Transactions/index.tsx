@@ -375,6 +375,7 @@ export default function TransactionsScreen() {
                                                 <Text className="flex-[1.5] text-gray-500 font-bold">Waktu</Text>
                                                 <Text className="flex-[2] text-gray-500 font-bold">Pelanggan</Text>
                                                 <Text className="flex-1 text-gray-500 font-bold">Metode</Text>
+                                                <Text className="flex-1 text-gray-500 font-bold text-right">Diskon</Text>
                                                 <Text className="flex-1 text-gray-500 font-bold text-right">Total</Text>
                                                 <Text className="flex-1 text-gray-500 font-bold text-center">Status</Text>
                                                 <Text className="w-24 text-gray-500 font-bold text-center">Aksi</Text>
@@ -397,6 +398,13 @@ export default function TransactionsScreen() {
                                                             </Text>
                                                         </View>
                                                     </View>
+                                                    <Text className="flex-1 text-red-500 font-medium text-right text-xs">
+                                                        {order.discount_type === 'percent'
+                                                            ? `${order.discount_rate}% (-Rp ${order.discount?.toLocaleString()})`
+                                                            : order.discount
+                                                                ? `- Rp ${order.discount?.toLocaleString()}`
+                                                                : '-'}
+                                                    </Text>
                                                     <Text className="flex-1 text-gray-900 font-bold text-right">Rp {order.total_amount.toLocaleString()}</Text>
                                                     <View className="flex-1 items-center">
                                                         <View className={`px-2 py-1 rounded-full ${order.status === 'completed' ? 'bg-green-100'

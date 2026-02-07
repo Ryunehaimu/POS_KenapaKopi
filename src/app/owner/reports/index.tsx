@@ -439,7 +439,7 @@ export default function ReportsScreen() {
             </View>
 
             {/* Content / Preview List */}
-            <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 100 }}>
+            <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 150 }}>
                 {loading ? (
                     <ActivityIndicator size="large" color="#4F46E5" className="mt-10" />
                 ) : (

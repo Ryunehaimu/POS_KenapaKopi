@@ -89,7 +89,9 @@ export default function EditTransactionScreen() {
             discountVal = parseRupiah(discount);
         }
 
-        return Math.max(0, subtotal - discountVal);
+        const safeSubtotal = isNaN(subtotal) ? 0 : subtotal;
+        const result = safeSubtotal - (isNaN(discountVal) ? 0 : discountVal);
+        return isNaN(result) ? 0 : Math.max(0, result);
     };
 
     const updateItemQuantity = (index: number, delta: number) => {
@@ -315,32 +317,44 @@ export default function EditTransactionScreen() {
                                     <View className="flex-row bg-gray-100 rounded-lg p-1">
                                         <TouchableOpacity
                                             onPress={() => {
-                                                setDiscountType('nominal');
-                                                setDiscount('');
+                                                if (discountType !== 'nominal') {
+                                                    setDiscountType('nominal');
+                                                    setDiscount('');
+                                                }
                                             }}
-                                            className={`px-3 py-1 rounded-md ${discountType === 'nominal' ? 'bg-white shadow-sm' : ''}`}
+                                            className="px-3 py-1 rounded-md"
+                                            style={discountType === 'nominal' ? { backgroundColor: 'white', elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2 } : {}}
                                         >
-                                            <Text className={`text-xs font-bold ${discountType === 'nominal' ? 'text-indigo-600' : 'text-gray-500'}`}>Rp</Text>
+                                            <Text className="text-xs font-bold" style={{ color: discountType === 'nominal' ? '#4f46e5' : '#6b7280' }}>Rp</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             onPress={() => {
-                                                setDiscountType('percent');
-                                                setDiscount('');
+                                                if (discountType !== 'percent') {
+                                                    setDiscountType('percent');
+                                                    setDiscount('');
+                                                }
                                             }}
-                                            className={`px-3 py-1 rounded-md ${discountType === 'percent' ? 'bg-white shadow-sm' : ''}`}
+                                            className="px-3 py-1 rounded-md"
+                                            style={discountType === 'percent' ? { backgroundColor: 'white', elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2 } : {}}
                                         >
-                                            <Text className={`text-xs font-bold ${discountType === 'percent' ? 'text-indigo-600' : 'text-gray-500'}`}>%</Text>
+                                            <Text className="text-xs font-bold" style={{ color: discountType === 'percent' ? '#4f46e5' : '#6b7280' }}>%</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
                                 <TextInput
                                     value={discount}
                                     onChangeText={(text) => {
-                                        if (discountType === 'percent') {
-                                            setDiscount(text.replace(/[^0-9.]/g, ''));
-                                        } else {
-                                            const numeric = text.replace(/[^0-9]/g, '');
-                                            setDiscount(formatRupiah(numeric, 'Rp '));
+                                        try {
+                                            if (discountType === 'percent') {
+                                                const clean = text.replace(/[^0-9.]/g, '');
+                                                setDiscount(clean);
+                                            } else {
+                                                const numeric = text.replace(/[^0-9]/g, '');
+                                                setDiscount(formatRupiah(numeric, 'Rp '));
+                                            }
+                                        } catch (e) {
+                                            console.error("Discount input error", e);
+                                            setDiscount('');
                                         }
                                     }}
                                     placeholder={discountType === 'percent' ? "0%" : "Rp 0"}
