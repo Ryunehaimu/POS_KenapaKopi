@@ -180,73 +180,82 @@ export default function TransactionHistory() {
                     ListEmptyComponent={
                         <Text className="text-center text-gray-400 mt-10">Tidak ada transaksi ditemukan.</Text>
                     }
-                    renderItem={({ item }) => (
-                        <View className="bg-white p-4 rounded-2xl shadow-sm mb-3 border border-gray-100">
+                    renderItem={({ item: order }) => (
+                        <TouchableOpacity
+                            key={order.id}
+                            className="bg-white p-4 rounded-2xl shadow-sm mb-3 border border-gray-100"
+                            onPress={() => router.push(`/owner/reports/transaction/${order.id}`)}
+                        >
                             <View className="flex-row justify-between mb-3 border-b border-gray-50 pb-2">
                                 <Text className="text-xs text-gray-500 font-medium">
-                                    {new Date(item.created_at || '').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    {new Date(order.created_at || '').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                 </Text>
-                                <StatusBadge status={item.status} />
+                                <StatusBadge status={order.status} />
                             </View>
 
                             <View className="flex-row justify-between items-center mb-1">
-                                <Text className="font-bold text-gray-900 text-lg">{item.customer_name || 'Guest'}</Text>
-                                <Text className="font-bold text-indigo-600 text-lg">Rp {item.total_amount.toLocaleString('id-ID')}</Text>
+                                <Text className="font-bold text-gray-900 text-lg">{order.customer_name || 'Guest'}</Text>
+                                <Text className="font-bold text-indigo-600 text-lg">Rp {order.total_amount.toLocaleString('id-ID')}</Text>
                             </View>
 
                             <View className="flex-row justify-between items-center mt-2">
                                 <View className="flex-row items-center bg-gray-50 px-2 py-1 rounded-lg">
                                     <Text className="text-[10px] text-gray-400 mr-1">ID:</Text>
-                                    <Text className="text-xs text-gray-600 font-mono">{item.id?.slice(0, 8)}</Text>
+                                    <Text className="text-xs text-gray-600 font-mono">{order.id?.slice(0, 8)}</Text>
                                 </View>
-                                <View className={`px-2 py-1 rounded lg ${item.payment_method === 'qris' ? 'bg-blue-50' : 'bg-green-50'}`}>
-                                    <Text className={`text-xs font-bold uppercase ${item.payment_method === 'qris' ? 'text-blue-700' : 'text-green-700'}`}>
-                                        {item.payment_method}
+                                <View className={`px-2 py-1 rounded lg ${order.payment_method === 'qris' ? 'bg-blue-50' : 'bg-green-50'}`}>
+                                    <Text className={`text-xs font-bold uppercase ${order.payment_method === 'qris' ? 'text-blue-700' : 'text-green-700'}`}>
+                                        {order.payment_method}
                                     </Text>
                                 </View>
                             </View>
-                        </View>
-                    )}
+                        </TouchableOpacity>
+                    )
+                    }
                 />
             )}
 
             {/* Pagination Controls - Floating or Fixed at bottom */}
-            {!loading && totalCount > 0 && (
-                <View className="absolute bottom-[90px] left-6 right-6 flex-row justify-between items-center bg-white p-3 rounded-xl shadow-lg border border-gray-100">
-                    <TouchableOpacity
-                        disabled={page === 1}
-                        onPress={() => setPage(p => Math.max(1, p - 1))}
-                        className={`p-2 rounded-lg ${page === 1 ? 'bg-gray-100' : 'bg-indigo-50'}`}
-                    >
-                        <ChevronBack size={20} color={page === 1 ? '#9CA3AF' : '#4F46E5'} />
-                    </TouchableOpacity>
+            {
+                !loading && totalCount > 0 && (
+                    <View className="absolute bottom-[90px] left-6 right-6 flex-row justify-between items-center bg-white p-3 rounded-xl shadow-lg border border-gray-100">
+                        <TouchableOpacity
+                            disabled={page === 1}
+                            onPress={() => setPage(p => Math.max(1, p - 1))}
+                            className={`p-2 rounded-lg ${page === 1 ? 'bg-gray-100' : 'bg-indigo-50'}`}
+                        >
+                            <ChevronBack size={20} color={page === 1 ? '#9CA3AF' : '#4F46E5'} />
+                        </TouchableOpacity>
 
-                    <Text className="text-gray-600 font-medium">
-                        Page {page} of {totalPages}
-                    </Text>
+                        <Text className="text-gray-600 font-medium">
+                            Page {page} of {totalPages}
+                        </Text>
 
-                    <TouchableOpacity
-                        disabled={page >= totalPages}
-                        onPress={() => setPage(p => Math.min(totalPages, p + 1))}
-                        className={`p-2 rounded-lg ${page >= totalPages ? 'bg-gray-100' : 'bg-indigo-50'}`}
-                    >
-                        <ChevronRight size={20} color={page >= totalPages ? '#9CA3AF' : '#4F46E5'} />
-                    </TouchableOpacity>
-                </View>
-            )}
+                        <TouchableOpacity
+                            disabled={page >= totalPages}
+                            onPress={() => setPage(p => Math.min(totalPages, p + 1))}
+                            className={`p-2 rounded-lg ${page >= totalPages ? 'bg-gray-100' : 'bg-indigo-50'}`}
+                        >
+                            <ChevronRight size={20} color={page >= totalPages ? '#9CA3AF' : '#4F46E5'} />
+                        </TouchableOpacity>
+                    </View>
+                )
+            }
 
             {/* Date Pickers */}
-            {(showDatePicker) && (
-                <DateTimePicker
-                    value={showDatePicker === 'start' ? startDate : endDate}
-                    mode="date"
-                    display="default"
-                    onChange={handleDateChange}
-                    maximumDate={new Date()}
-                />
-            )}
+            {
+                (showDatePicker) && (
+                    <DateTimePicker
+                        value={showDatePicker === 'start' ? startDate : endDate}
+                        mode="date"
+                        display="default"
+                        onChange={handleDateChange}
+                        maximumDate={new Date()}
+                    />
+                )
+            }
 
             <OwnerBottomNav activeMenu="history" />
-        </View>
+        </View >
     );
 }

@@ -4,26 +4,28 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Save, Trash2, Plus, Minus, X } from 'lucide-react-native';
 import { orderService, Order, OrderItem } from '../../../../services/orderService';
 import { productService, Product } from '../../../../services/productService';
+import { formatRupiah, parseRupiah } from '../../../../utils/currency';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
 export default function EditTransactionScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
-    
+
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [order, setOrder] = useState<Order | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
-    
+
     // Editable fields
     const [customerName, setCustomerName] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
     const [status, setStatus] = useState<'pending' | 'completed' | 'cancelled'>('completed');
+    const [discount, setDiscount] = useState(''); // Added discount state
     const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-    
+
     // Add product modal
     const [showAddProduct, setShowAddProduct] = useState(false);
-    
+
     // Track original status for comparison
     const [originalStatus, setOriginalStatus] = useState<'pending' | 'completed' | 'cancelled'>('completed');
 
@@ -39,16 +41,17 @@ export default function EditTransactionScreen() {
                 orderService.getOrderDetails(id!),
                 productService.getProducts()
             ]);
-            
+
             setOrder(orderData);
             setProducts(productsData);
-            
+
             // Populate form fields
             setCustomerName(orderData.customer_name);
             setPaymentMethod(orderData.payment_method);
             setStatus(orderData.status);
+            setDiscount(orderData.discount ? formatRupiah(orderData.discount, 'Rp ') : ''); // Load discount formatted
             setOriginalStatus(orderData.status); // Track original status
-            
+
             // Map order items
             const items: OrderItem[] = orderData.order_items?.map((item: any) => ({
                 id: item.id,
@@ -59,7 +62,7 @@ export default function EditTransactionScreen() {
                 subtotal: item.subtotal,
                 product_name: item.products?.name || 'Unknown'
             })) || [];
-            
+
             setOrderItems(items);
         } catch (error) {
             Alert.alert('Error', 'Gagal memuat data transaksi');
@@ -70,13 +73,15 @@ export default function EditTransactionScreen() {
     };
 
     const calculateTotal = () => {
-        return orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+        const subtotal = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+        const discountVal = parseRupiah(discount);
+        return Math.max(0, subtotal - discountVal);
     };
 
     const updateItemQuantity = (index: number, delta: number) => {
         const newItems = [...orderItems];
         const newQty = newItems[index].quantity + delta;
-        
+
         if (newQty <= 0) {
             // Remove item
             newItems.splice(index, 1);
@@ -84,7 +89,7 @@ export default function EditTransactionScreen() {
             newItems[index].quantity = newQty;
             newItems[index].subtotal = newQty * newItems[index].price;
         }
-        
+
         setOrderItems(newItems);
     };
 
@@ -96,7 +101,7 @@ export default function EditTransactionScreen() {
 
     const addProduct = (product: Product) => {
         const existingIndex = orderItems.findIndex(item => item.product_id === product.id);
-        
+
         if (existingIndex >= 0) {
             updateItemQuantity(existingIndex, 1);
         } else {
@@ -109,7 +114,7 @@ export default function EditTransactionScreen() {
             };
             setOrderItems([...orderItems, newItem]);
         }
-        
+
         setShowAddProduct(false);
     };
 
@@ -118,7 +123,7 @@ export default function EditTransactionScreen() {
             Alert.alert('Error', 'Nama pelanggan tidak boleh kosong');
             return;
         }
-        
+
         if (orderItems.length === 0) {
             Alert.alert('Error', 'Pesanan harus memiliki minimal 1 item');
             return;
@@ -126,17 +131,18 @@ export default function EditTransactionScreen() {
 
         try {
             setSaving(true);
-            
+
             // Check if status changed to cancelled (was completed before)
             const statusChangedToCancelled = status === 'cancelled' && originalStatus === 'completed';
-            
+
             await orderService.updateOrder(
                 id!,
                 {
                     customer_name: customerName,
                     payment_method: paymentMethod,
                     status: status,
-                    total_amount: calculateTotal()
+                    total_amount: calculateTotal(),
+                    discount: parseRupiah(discount), // Save discount
                 },
                 orderItems
             );
@@ -150,8 +156,8 @@ export default function EditTransactionScreen() {
                 }
             }
 
-            Alert.alert('Sukses', statusChangedToCancelled 
-                ? 'Transaksi dibatalkan dan stok berhasil dikembalikan' 
+            Alert.alert('Sukses', statusChangedToCancelled
+                ? 'Transaksi dibatalkan dan stok berhasil dikembalikan'
                 : 'Transaksi berhasil diperbarui', [
                 { text: 'OK', onPress: () => router.back() }
             ]);
@@ -210,9 +216,9 @@ export default function EditTransactionScreen() {
                         <Text className="text-gray-500 text-sm">#{order?.order_number}</Text>
                     </View>
                 </View>
-                
+
                 <View className="flex-row gap-3">
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={handleDelete}
                         disabled={saving}
                         className="bg-red-100 px-4 py-2 rounded-lg flex-row items-center"
@@ -220,8 +226,8 @@ export default function EditTransactionScreen() {
                         <Trash2 size={18} color="#dc2626" />
                         <Text className="text-red-600 font-bold ml-2">Hapus</Text>
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                         onPress={handleSave}
                         disabled={saving}
                         className="bg-indigo-600 px-6 py-2 rounded-lg flex-row items-center"
@@ -244,7 +250,7 @@ export default function EditTransactionScreen() {
                     <View className="flex-1">
                         <View className="bg-white rounded-2xl p-6 shadow-sm mb-6">
                             <Text className="text-lg font-bold text-gray-900 mb-4">Informasi Pesanan</Text>
-                            
+
                             {/* Customer Name */}
                             <View className="mb-4">
                                 <Text className="text-gray-500 text-sm mb-2">Nama Pelanggan</Text>
@@ -255,18 +261,17 @@ export default function EditTransactionScreen() {
                                     className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900"
                                 />
                             </View>
-                            
+
                             {/* Payment Method */}
                             <View className="mb-4">
                                 <Text className="text-gray-500 text-sm mb-2">Metode Pembayaran</Text>
                                 <View className="flex-row gap-3">
                                     <TouchableOpacity
                                         onPress={() => setPaymentMethod('cash')}
-                                        className={`flex-1 py-3 rounded-xl border-2 items-center ${
-                                            paymentMethod === 'cash' 
-                                                ? 'border-green-500 bg-green-50' 
-                                                : 'border-gray-200 bg-gray-50'
-                                        }`}
+                                        className={`flex-1 py-3 rounded-xl border-2 items-center ${paymentMethod === 'cash'
+                                            ? 'border-green-500 bg-green-50'
+                                            : 'border-gray-200 bg-gray-50'
+                                            }`}
                                     >
                                         <Text className={`font-bold ${paymentMethod === 'cash' ? 'text-green-600' : 'text-gray-500'}`}>
                                             CASH
@@ -274,11 +279,10 @@ export default function EditTransactionScreen() {
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         onPress={() => setPaymentMethod('qris')}
-                                        className={`flex-1 py-3 rounded-xl border-2 items-center ${
-                                            paymentMethod === 'qris' 
-                                                ? 'border-blue-500 bg-blue-50' 
-                                                : 'border-gray-200 bg-gray-50'
-                                        }`}
+                                        className={`flex-1 py-3 rounded-xl border-2 items-center ${paymentMethod === 'qris'
+                                            ? 'border-blue-500 bg-blue-50'
+                                            : 'border-gray-200 bg-gray-50'
+                                            }`}
                                     >
                                         <Text className={`font-bold ${paymentMethod === 'qris' ? 'text-blue-600' : 'text-gray-500'}`}>
                                             QRIS
@@ -286,7 +290,21 @@ export default function EditTransactionScreen() {
                                     </TouchableOpacity>
                                 </View>
                             </View>
-                            
+
+                            <View className="mb-4">
+                                <Text className="text-gray-500 text-sm mb-2">Diskon (Rp)</Text>
+                                <TextInput
+                                    value={discount}
+                                    onChangeText={(text) => {
+                                        const numeric = text.replace(/[^0-9]/g, '');
+                                        setDiscount(formatRupiah(numeric, 'Rp '));
+                                    }}
+                                    placeholder="Rp 0"
+                                    keyboardType="numeric"
+                                    className="border border-indigo-200 rounded-lg p-2 text-right font-medium text-gray-700 bg-indigo-50"
+                                />
+                            </View>
+
                             {/* Status */}
                             <View>
                                 <Text className="text-gray-500 text-sm mb-2">Status</Text>
@@ -295,21 +313,19 @@ export default function EditTransactionScreen() {
                                         <TouchableOpacity
                                             key={s}
                                             onPress={() => setStatus(s)}
-                                            className={`flex-1 py-3 rounded-xl border-2 items-center ${
-                                                status === s 
-                                                    ? s === 'completed' ? 'border-green-500 bg-green-50'
-                                                      : s === 'pending' ? 'border-yellow-500 bg-yellow-50'
-                                                      : 'border-red-500 bg-red-50'
-                                                    : 'border-gray-200 bg-gray-50'
-                                            }`}
+                                            className={`flex-1 py-3 rounded-xl border-2 items-center ${status === s
+                                                ? s === 'completed' ? 'border-green-500 bg-green-50'
+                                                    : s === 'pending' ? 'border-yellow-500 bg-yellow-50'
+                                                        : 'border-red-500 bg-red-50'
+                                                : 'border-gray-200 bg-gray-50'
+                                                }`}
                                         >
-                                            <Text className={`font-bold text-xs ${
-                                                status === s 
-                                                    ? s === 'completed' ? 'text-green-600'
-                                                      : s === 'pending' ? 'text-yellow-600'
-                                                      : 'text-red-600'
-                                                    : 'text-gray-500'
-                                            }`}>
+                                            <Text className={`font-bold text-xs ${status === s
+                                                ? s === 'completed' ? 'text-green-600'
+                                                    : s === 'pending' ? 'text-yellow-600'
+                                                        : 'text-red-600'
+                                                : 'text-gray-500'
+                                                }`}>
                                                 {s.toUpperCase()}
                                             </Text>
                                         </TouchableOpacity>
@@ -319,8 +335,23 @@ export default function EditTransactionScreen() {
                         </View>
 
                         {/* Total */}
+                        {/* Total */}
                         <View className="bg-indigo-600 rounded-2xl p-6">
-                            <Text className="text-indigo-200 text-sm mb-1">Total Pesanan</Text>
+                            <View className="flex-row justify-between mb-2">
+                                <Text className="text-indigo-200 text-sm">Harga Normal</Text>
+                                <Text className="text-indigo-100 font-bold">
+                                    Rp {orderItems.reduce((sum, item) => sum + item.subtotal, 0).toLocaleString()}
+                                </Text>
+                            </View>
+
+                            <View className="flex-row justify-between mb-4 pb-4 border-b border-indigo-500">
+                                <Text className="text-indigo-200 text-sm">Potongan Diskon</Text>
+                                <Text className="text-red-300 font-bold">
+                                    - Rp {parseFloat(discount || '0').toLocaleString()}
+                                </Text>
+                            </View>
+
+                            <Text className="text-indigo-200 text-sm mb-1">Total Akhir</Text>
                             <Text className="text-white text-3xl font-bold">
                                 Rp {calculateTotal().toLocaleString()}
                             </Text>
@@ -332,7 +363,7 @@ export default function EditTransactionScreen() {
                         <View className="bg-white rounded-2xl p-6 shadow-sm">
                             <View className="flex-row justify-between items-center mb-4">
                                 <Text className="text-lg font-bold text-gray-900">Item Pesanan</Text>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={() => setShowAddProduct(true)}
                                     className="bg-indigo-100 px-4 py-2 rounded-lg flex-row items-center"
                                 >
@@ -354,7 +385,7 @@ export default function EditTransactionScreen() {
                                                 @ Rp {item.price.toLocaleString()}
                                             </Text>
                                         </View>
-                                        
+
                                         <View className="flex-row items-center gap-2 mr-4">
                                             <TouchableOpacity
                                                 onPress={() => updateItemQuantity(index, -1)}
@@ -376,7 +407,7 @@ export default function EditTransactionScreen() {
                                         <Text className="text-gray-900 font-bold w-24 text-right mr-3">
                                             Rp {item.subtotal.toLocaleString()}
                                         </Text>
-                                        
+
                                         <TouchableOpacity
                                             onPress={() => removeItem(index)}
                                             className="w-8 h-8 bg-red-100 rounded-lg items-center justify-center"
@@ -401,7 +432,7 @@ export default function EditTransactionScreen() {
                                 <X size={24} color="#9ca3af" />
                             </TouchableOpacity>
                         </View>
-                        
+
                         <ScrollView className="p-4">
                             {products.map((product) => (
                                 <TouchableOpacity

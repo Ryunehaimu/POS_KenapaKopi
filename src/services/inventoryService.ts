@@ -102,6 +102,9 @@ export const inventoryService = {
   },
 
   async addStock(id: string, amount: number, price: number | null) {
+    // Force price to 0 if null, satisfying user request "jadikan 0 aja"
+    const finalPrice = price === null ? 0 : price;
+
     // 1. Get current stock
     const ingredient = await this.getIngredientById(id);
     const stockBefore = ingredient.current_stock || 0;
@@ -116,9 +119,7 @@ export const inventoryService = {
     if (updateError) throw updateError;
 
     // 3. Generate notes
-    const priceText = price !== null 
-      ? `Rp ${price.toLocaleString('id-ID')}` 
-      : '0 (Kasir tidak tahu harga)';
+    const priceText = `Rp ${finalPrice.toLocaleString('id-ID')}`;
     const notes = `${ingredient.name}: ${stockBefore} + ${amount} = ${newStock} ${ingredient.unit}. Harga: ${priceText}`;
 
     // 4. Log it
@@ -128,7 +129,7 @@ export const inventoryService = {
         ingredient_id: id,
         change_amount: amount,
         current_stock_snapshot: newStock,
-        price: price,
+        price: finalPrice,
         change_type: 'in',
         notes: notes
       }]);

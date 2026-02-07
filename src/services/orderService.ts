@@ -20,6 +20,7 @@ export interface Order {
   status: 'pending' | 'completed' | 'cancelled';
   payment_method: 'cash' | 'qris';
   created_at?: string;
+  discount?: number; // Added discount field
   items?: OrderItem[];
 }
 
@@ -33,7 +34,8 @@ export const orderService = {
         note: order.note,
         total_amount: order.total_amount,
         status: order.status,
-        payment_method: order.payment_method
+        payment_method: order.payment_method,
+        discount: order.discount || 0 // Insert discount
       }])
       .select()
       .single();
@@ -178,7 +180,7 @@ export const orderService = {
     };
 
     const { data, error } = await supabase
-      .rpc('get_shift_sales_report', { 
+      .rpc('get_shift_sales_report', {
         start_time: formatTimestamp(startTime),
         end_time: formatTimestamp(endTime)
       });
@@ -257,6 +259,7 @@ export const orderService = {
       payment_method?: 'cash' | 'qris';
       status?: 'pending' | 'completed' | 'cancelled';
       total_amount?: number;
+      discount?: number; // Added discount
     },
     newItems?: OrderItem[]
   ) {
@@ -268,7 +271,8 @@ export const orderService = {
         note: updates.note,
         payment_method: updates.payment_method,
         status: updates.status,
-        total_amount: updates.total_amount
+        total_amount: updates.total_amount,
+        discount: updates.discount // Update discount
       })
       .eq('id', orderId)
       .select()
@@ -312,20 +316,21 @@ export const orderService = {
     return true;
   },
 
-  async payOrder(orderId: string, paymentMethod: 'cash' | 'qris', totalAmount: number) {
-        const { data, error } = await supabase
-            .from('orders')
-            .update({
-                status: 'completed',
-                payment_method: paymentMethod,
-                total_amount: totalAmount, // Confirm amount (e.g. if price changed or for record)
-                created_at: new Date().toISOString() // Optional: Update timestamp to payment time? Or keep original? Let's keep original for now or maybe add `paid_at` column later. For now, just status update.
-            })
-            .eq('id', orderId)
-            .select()
-            .single();
+  async payOrder(orderId: string, paymentMethod: 'cash' | 'qris', totalAmount: number, discount?: number) {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        status: 'completed',
+        payment_method: paymentMethod,
+        total_amount: totalAmount, // Confirm amount (e.g. if price changed or for record)
+        discount: discount || 0, // Save discount
+        created_at: new Date().toISOString() // Optional: Update timestamp to payment time? Or keep original? Let's keep original for now or maybe add `paid_at` column later. For now, just status update.
+      })
+      .eq('id', orderId)
+      .select()
+      .single();
 
-        if (error) throw error;
-        return data;
-    }
+    if (error) throw error;
+    return data;
+  }
 };

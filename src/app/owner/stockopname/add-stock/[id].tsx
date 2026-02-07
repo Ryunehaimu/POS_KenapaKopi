@@ -8,7 +8,7 @@ export default function AddStockScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [amount, setAmount] = useState('');
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState('0'); // Default 0 as requested
   const [loading, setLoading] = useState(false);
   const [unit, setUnit] = useState('');
 
@@ -17,41 +17,41 @@ export default function AddStockScreen() {
   }, [id]);
 
   const loadIngredient = async () => {
-      try {
-          const data = await inventoryService.getIngredientById(id as string);
-          if (data) setUnit(data.unit);
-      } catch (e) {
-          console.error(e);
-      }
+    try {
+      const data = await inventoryService.getIngredientById(id as string);
+      if (data) setUnit(data.unit);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSave = async () => {
     if (!amount.trim()) {
-       Alert.alert('Eror', 'Jumlah harus diisi');
-       return;
-    }
-    
-    const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) {
-        Alert.alert('Eror', 'Jumlah harus angka positif lebih dari 0');
-        return;
+      Alert.alert('Eror', 'Jumlah harus diisi');
+      return;
     }
 
-    const priceVal = parseFloat(price);
-    if (isNaN(priceVal) || priceVal <= 0) {
-        Alert.alert('Eror', 'Harga harus angka positif lebih dari 0');
-        return;
+    const val = parseFloat(amount);
+    if (isNaN(val) || val <= 0) {
+      Alert.alert('Eror', 'Jumlah harus angka positif lebih dari 0');
+      return;
+    }
+
+    const priceVal = price.trim() === '' ? 0 : parseFloat(price);
+    if (isNaN(priceVal) || priceVal < 0) {
+      Alert.alert('Eror', 'Harga tidak boleh negatif');
+      return;
     }
 
     try {
       setLoading(true);
-      await inventoryService.addStock(id as string, parseFloat(amount), parseFloat(price));
+      await inventoryService.addStock(id as string, parseFloat(amount), priceVal);
       Alert.alert('Sukses', 'Stok berhasil ditambahkan', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error) {
-       console.error(error);
-       Alert.alert('Gagal', 'Terjadi kesalahan saat update stok');
+      console.error(error);
+      Alert.alert('Gagal', 'Terjadi kesalahan saat update stok');
     } finally {
       setLoading(false);
     }

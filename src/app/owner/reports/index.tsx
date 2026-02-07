@@ -273,7 +273,7 @@ export default function ReportsScreen() {
                 className="pt-12 pb-24 px-6 rounded-b-[40px] shadow-lg relative z-10"
             >
                 <View className="flex-row items-center mb-4 gap-4">
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={() => router.back()}
                         className="p-2 bg-white/20 rounded-full"
                     >
@@ -404,14 +404,17 @@ export default function ReportsScreen() {
                             data.map((item, idx) => (
                                 <View key={idx} className={`flex-row p-3 border-b border-gray-50 items-center ${item.type === 'net' ? 'bg-indigo-50 border-t border-indigo-100' : ''}`}>
                                     {selectedType === 'transaction_report' ? (
-                                        <>
+                                        <TouchableOpacity
+                                            className="flex-row items-center flex-1"
+                                            onPress={() => router.push(`/owner/reports/transaction/${item.id}`)}
+                                        >
                                             <Text className="flex-1 text-gray-600 text-[10px]">{(item.date || '').split(',')[0]}</Text>
                                             <Text className="flex-1 text-gray-800 font-medium text-xs">{item.orderId || '-'}</Text>
                                             <Text className="flex-[1.5] text-gray-600 text-[10px]" numberOfLines={1}>{item.customerName || 'Pelanggan'}</Text>
                                             <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
                                                 Rp {(item.totalAmount ?? 0).toLocaleString('id-ID')}
                                             </Text>
-                                        </>
+                                        </TouchableOpacity>
                                     ) : selectedType === 'net_revenue' ? (
                                         <>
                                             <Text className={`flex-[3] text-sm ${item.type === 'net' ? 'font-bold text-indigo-900' : 'text-gray-700'}`}>

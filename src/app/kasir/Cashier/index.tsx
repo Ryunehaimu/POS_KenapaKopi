@@ -90,7 +90,7 @@ export default function CashierScreen() {
             // Find original product to get all price fields
             const originalProduct = products.find(p => p.id === item.id);
             if (!originalProduct) return item;
-            
+
             return {
                 ...item,
                 price: getPrice(originalProduct, transactionType)
@@ -150,13 +150,13 @@ export default function CashierScreen() {
             Alert.alert("Validasi", "Masukkan nama pelanggan");
             return;
         }
-        
+
         // For online orders (Gojek/Grab/Shopee), skip modal and process directly
         if (transactionType !== 'outlet') {
             handleOnlineOrderPayment();
             return;
         }
-        
+
         setPaymentModalVisible(true);
     };
 
@@ -164,7 +164,7 @@ export default function CashierScreen() {
     const handleOnlineOrderPayment = async () => {
         try {
             setProcessing(true);
-            
+
             const orderItems = cart.map(item => ({
                 product_id: item.id,
                 quantity: item.quantity,
@@ -217,7 +217,7 @@ export default function CashierScreen() {
             }
 
             Alert.alert(
-                "Sukses", 
+                "Sukses",
                 `Order ${transactionType.toUpperCase()} Berhasil!\nTotal: Rp ${total.toLocaleString()}`,
                 [{
                     text: "OK",
@@ -251,7 +251,7 @@ export default function CashierScreen() {
                         } catch (e) {
                             console.log("Failed to print second copy for online order", e);
                         }
-                        
+
                         setCart([]);
                         setCustomerName('');
                         setNote('');
@@ -290,7 +290,8 @@ export default function CashierScreen() {
                 total_amount: finalAmount,
                 status: 'completed',
                 payment_method: paymentMethod,
-                note: note // Pass the note
+                note: note, // Pass the note
+                discount: discount // Pass the discount
             }, orderItems);
 
             // Trigger Stock Deduction (Async, don't block UI success)
@@ -567,7 +568,7 @@ export default function CashierScreen() {
                                             Alert.alert("Validasi", "Masukkan nama pelanggan");
                                             return;
                                         }
-                                        
+
                                         Alert.alert("Konfirmasi", "Simpan transaksi sebagai 'Bayar Nanti'?", [
                                             { text: "Batal", style: "cancel" },
                                             {

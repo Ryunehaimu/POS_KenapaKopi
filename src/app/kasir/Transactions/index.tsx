@@ -182,25 +182,25 @@ export default function TransactionsScreen() {
         if (!selectedUnpaidOrder?.id) return;
         try {
             setProcessingPayment(true);
-            
+
             // 1. Update Order Status
-            await orderService.payOrder(selectedUnpaidOrder.id, method, amount); 
-            
+            await orderService.payOrder(selectedUnpaidOrder.id, method, amount, discount);
+
             // Payment Successful - Update UI first
             setPaymentModalVisible(false);
-            loadData(); 
+            loadData();
 
             // 2. Print Receipt (Non-blocking for payment success)
             try {
                 const fullOrder = await orderService.getOrderDetails(selectedUnpaidOrder.id);
                 const formattedItems = fullOrder.order_items?.map((item: any) => ({
-                        name: item.products?.name || 'Unknown Item',
-                        price: item.price,
-                        quantity: item.quantity,
-                        note: item.note
-                    })) || [];
+                    name: item.products?.name || 'Unknown Item',
+                    price: item.price,
+                    quantity: item.quantity,
+                    note: item.note
+                })) || [];
 
-                 await printerService.printReceipt(
+                await printerService.printReceipt(
                     { ...fullOrder, payment_method: method, discount },
                     formattedItems,
                     fullOrder.customer_name,
@@ -220,16 +220,16 @@ export default function TransactionsScreen() {
                     onPress: async () => {
                         try {
                             // Print Second Copy (Store/Archive)
-                             // Need to fetch again or reuse data? reusing is fine if scope allows, but safe to fetch
-                             const fullOrder = await orderService.getOrderDetails(selectedUnpaidOrder.id!);
-                             const formattedItems = fullOrder.order_items?.map((item: any) => ({
-                                    name: item.products?.name || 'Unknown Item',
-                                    price: item.price,
-                                    quantity: item.quantity,
-                                    note: item.note
-                                })) || [];
-                                
-                             await printerService.printReceipt(
+                            // Need to fetch again or reuse data? reusing is fine if scope allows, but safe to fetch
+                            const fullOrder = await orderService.getOrderDetails(selectedUnpaidOrder.id!);
+                            const formattedItems = fullOrder.order_items?.map((item: any) => ({
+                                name: item.products?.name || 'Unknown Item',
+                                price: item.price,
+                                quantity: item.quantity,
+                                note: item.note
+                            })) || [];
+
+                            await printerService.printReceipt(
                                 { ...fullOrder, payment_method: method, discount },
                                 formattedItems,
                                 fullOrder.customer_name,
@@ -243,7 +243,7 @@ export default function TransactionsScreen() {
                     }
                 }
             ]);
-            
+
         } catch (e: any) {
             console.error("Pay error", e);
             Alert.alert("Error", `Gagal memproses pembayaran: ${e.message || 'Unknown error'}`);
@@ -329,7 +329,7 @@ export default function TransactionsScreen() {
                             onPress={() => setActiveTab('unpaid')}
                             className={`mr-8 pb-4 ${activeTab === 'unpaid' ? 'border-b-2 border-orange-500' : ''}`}
                         >
-                             <View className="flex-row items-center gap-2">
+                            <View className="flex-row items-center gap-2">
                                 <Text className={`text-lg font-bold ${activeTab === 'unpaid' ? 'text-orange-500' : 'text-gray-400'}`}>Belum Bayar</Text>
                                 {unpaidOrders.length > 0 && (
                                     <View className="bg-orange-500 px-2 py-0.5 rounded-full">
@@ -454,9 +454,9 @@ export default function TransactionsScreen() {
                                         </View>
                                     )}
 
-                                     {activeTab === 'unpaid' && (
+                                    {activeTab === 'unpaid' && (
                                         <View>
-                                             <View className="flex-row py-4 border-b border-gray-100 mb-2 bg-orange-50 px-4 rounded-t-xl">
+                                            <View className="flex-row py-4 border-b border-gray-100 mb-2 bg-orange-50 px-4 rounded-t-xl">
                                                 <Text className="flex-[1.5] text-gray-500 font-bold">Waktu</Text>
                                                 <Text className="flex-[2] text-gray-500 font-bold">Pelanggan</Text>
                                                 <Text className="flex-[1.5] text-gray-500 font-bold text-right pr-4">Total</Text>
@@ -514,7 +514,7 @@ export default function TransactionsScreen() {
                                                         >
                                                             <Trash2 size={16} color="#ef4444" />
                                                         </TouchableOpacity>
-                                                       <TouchableOpacity
+                                                        <TouchableOpacity
                                                             onPress={() => handlePayOrder(order)}
                                                             className="bg-indigo-600 p-2 rounded-lg shadow-sm shadow-indigo-200"
                                                         >
@@ -525,7 +525,7 @@ export default function TransactionsScreen() {
                                             ))}
                                             {unpaidOrders.length === 0 && (
                                                 <View className="py-12 items-center">
-                                                     <Text className="text-gray-400">Tidak ada transaksi yang belum dibayar.</Text>
+                                                    <Text className="text-gray-400">Tidak ada transaksi yang belum dibayar.</Text>
                                                 </View>
                                             )}
                                         </View>
