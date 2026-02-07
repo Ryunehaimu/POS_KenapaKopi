@@ -58,6 +58,9 @@ export default function OwnerDashboard() {
     total_revenue: number;
     cash_revenue: number;
     qris_revenue: number;
+    gojek_revenue: number;
+    grab_revenue: number;
+    shopee_revenue: number;
     menu_sales: {
       product_name: string;
       quantity_sold: number;
@@ -67,6 +70,9 @@ export default function OwnerDashboard() {
     total_revenue: 0,
     cash_revenue: 0,
     qris_revenue: 0,
+    gojek_revenue: 0,
+    grab_revenue: 0,
+    shopee_revenue: 0,
     menu_sales: []
   });
 
@@ -129,6 +135,9 @@ export default function OwnerDashboard() {
         total_revenue: monthlyData.total_revenue,
         cash_revenue: monthlyData.cash_revenue,
         qris_revenue: monthlyData.qris_revenue,
+        gojek_revenue: monthlyData.gojek_revenue,
+        grab_revenue: monthlyData.grab_revenue,
+        shopee_revenue: monthlyData.shopee_revenue,
         menu_sales: monthlyData.menu_sales
       });
 
@@ -221,25 +230,6 @@ export default function OwnerDashboard() {
             <View className="bg-white rounded-xl shadow-sm p-4 mb-4 z-50">
               <View className="flex-row justify-between items-center mb-4">
                 <Text className="text-gray-500 text-sm font-medium">Pendapatan Transaksi</Text>
-                <View className="flex-row items-center gap-2">
-                  <TouchableOpacity
-                    onPress={printShiftReport}
-                    className="bg-indigo-600 px-3 py-1 rounded-lg flex-row items-center"
-                  >
-                    <Printer color="white" size={14} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setShiftDropdownOpen(!shiftDropdownOpen)}
-                    className="bg-gray-50 px-3 py-1 rounded-lg border border-gray-200 flex-row items-center"
-                  >
-                    <Text className="text-xs font-medium text-gray-700 mr-1">
-                      {selectedShift === 'today'
-                        ? 'Hari Ini'
-                        : shifts.find(s => s.id === selectedShift)?.name || 'Shift'}
-                    </Text>
-                    <ChevronDown size={12} color="gray" />
-                  </TouchableOpacity>
-                </View>
               </View>
 
               {shiftDropdownOpen && (
@@ -332,11 +322,41 @@ export default function OwnerDashboard() {
           <View className="flex-row gap-4 mb-8">
             {/* Card 4: Pendapatan Bulan Ini (HIDDEN FOR CAPTAIN) */}
             {userRole === 'owner' ? (
-              <View className="flex-1 bg-white p-4 rounded-xl shadow-sm">
-                <Text className="text-indigo-600 text-xl font-bold" numberOfLines={1}>
-                  Rp. {monthlyStats.total_revenue.toLocaleString('id-ID')}
-                </Text>
-                <Text className="text-gray-400 text-xs mt-2 font-medium">Pendapatan Bulan Ini</Text>
+              <View className="bg-white rounded-xl shadow-sm p-4 w-full">
+                <View className="flex-row justify-between items-center mb-4">
+                  <Text className="text-gray-500 text-sm font-medium">Pendapatan Bulan Ini</Text>
+                </View>
+
+                <View className="flex-row justify-between items-end mb-4">
+                  <Text className="text-3xl font-bold text-gray-900">Rp {monthlyStats.total_revenue.toLocaleString('id-ID')}</Text>
+                  <View className="flex-row items-center gap-1 bg-green-50 px-2 py-1 rounded-lg">
+                    <TrendingUp color="green" size={12} />
+                    <Text className="text-xs font-bold text-green-700">Total</Text>
+                  </View>
+                </View>
+
+                <View className="flex-row flex-wrap gap-2">
+                  <View className="bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                    <Text className="text-[10px] text-gray-500">Tunai</Text>
+                    <Text className="text-xs font-bold text-gray-800">Rp {monthlyStats.cash_revenue.toLocaleString('id-ID')}</Text>
+                  </View>
+                  <View className="bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                    <Text className="text-[10px] text-gray-500">QRIS</Text>
+                    <Text className="text-xs font-bold text-gray-800">Rp {monthlyStats.qris_revenue.toLocaleString('id-ID')}</Text>
+                  </View>
+                  <View className="bg-green-50 px-2 py-1 rounded border border-green-100">
+                    <Text className="text-[10px] text-green-600">Gojek</Text>
+                    <Text className="text-xs font-bold text-green-700">Rp {monthlyStats.gojek_revenue.toLocaleString('id-ID')}</Text>
+                  </View>
+                  <View className="bg-green-50 px-2 py-1 rounded border border-green-100">
+                    <Text className="text-[10px] text-green-600">Grab</Text>
+                    <Text className="text-xs font-bold text-green-700">Rp {monthlyStats.grab_revenue.toLocaleString('id-ID')}</Text>
+                  </View>
+                  <View className="bg-orange-50 px-2 py-1 rounded border border-orange-100">
+                    <Text className="text-[10px] text-orange-600">Shopee</Text>
+                    <Text className="text-xs font-bold text-orange-700">Rp {monthlyStats.shopee_revenue.toLocaleString('id-ID')}</Text>
+                  </View>
+                </View>
               </View>
             ) : (
               <View className="flex-1 p-4 rounded-xl justify-center items-center border-2 border-dashed border-gray-300">

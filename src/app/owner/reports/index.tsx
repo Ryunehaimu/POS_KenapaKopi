@@ -12,8 +12,7 @@ const REPORT_TYPES: { label: string; value: ReportType }[] = [
     { label: 'Menu Terlaris', value: 'best_selling_menu' },
     { label: 'Pengeluaran Bahan', value: 'ingredient_expense' },
     { label: 'Pengeluaran Operasional', value: 'operational_expense' },
-    { label: 'Stok Terpakai', value: 'stock_usage' },
-    { label: 'Stok Tersedia', value: 'current_stock' }
+    { label: 'Laporan Stok', value: 'stock_report' }
 ];
 
 const MONTHS = [
@@ -85,11 +84,8 @@ export default function ReportsScreen() {
                 result = await reportService.getOperationalExpenseReport(startDate, endDate, currentPage, itemsPerPage);
             } else if (selectedType === 'transaction_report') {
                 result = await reportService.getTransactionReport(startDate, endDate, currentPage, itemsPerPage);
-            } else if (selectedType === 'stock_usage') {
-                result = await reportService.getStockUsageReport(startDate, endDate, currentPage, itemsPerPage);
-            } else if (selectedType === 'current_stock') {
-                // Current Stock doesn't strictly need Date range but interface might expect it or we ignore it
-                result = await reportService.getCurrentStockReport(currentPage, itemsPerPage);
+            } else if (selectedType === 'stock_report') {
+                result = await reportService.getStockReport(startDate, endDate, currentPage, itemsPerPage);
             }
 
             if (result) {
@@ -263,36 +259,15 @@ export default function ReportsScreen() {
                         </tbody>
                     </table>
                 `;
-            } else if (selectedType === 'stock_usage') {
+            } else if (selectedType === 'stock_report') {
                 html = `
-                    <h3>Laporan Stok Terpakai</h3>
+                    <h3>Laporan Stok</h3>
                     <table>
                         <thead>
                             <tr>
                                 <th>Nama Bahan</th>
                                 <th>Satuan</th>
-                                <th class="text-right">Total Terpakai</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.map((item: any) => `
-                                <tr>
-                                    <td>${item.name || '-'}</td>
-                                    <td>${item.unit || '-'}</td>
-                                    <td class="text-right">${item.totalUsed || 0}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-            } else if (selectedType === 'current_stock') {
-                html = `
-                    <h3>Laporan Stok Tersedia</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nama Bahan</th>
-                                <th>Satuan</th>
+                                <th class="text-right">Terpakai</th>
                                 <th class="text-right">Stok Saat Ini</th>
                                 <th>Status</th>
                             </tr>
@@ -302,6 +277,7 @@ export default function ReportsScreen() {
                                 <tr>
                                     <td>${item.name || '-'}</td>
                                     <td>${item.unit || '-'}</td>
+                                    <td class="text-right">${item.totalUsed || 0}</td>
                                     <td class="text-right">${item.currentStock || 0}</td>
                                     <td>${item.status}</td>
                                 </tr>
@@ -458,24 +434,27 @@ export default function ReportsScreen() {
                                     <Text className="flex-[3] font-bold text-gray-500 text-xs text-left">Keterangan</Text>
                                     <Text className="flex-[2] font-bold text-gray-500 text-xs text-right">Jumlah</Text>
                                 </>
+                            ) : selectedType === 'stock_report' ? (
+                                <>
+                                    <Text className="flex-[2] font-bold text-gray-500 text-xs text-left">Nama Bahan</Text>
+                                    <Text className="flex-1 font-bold text-gray-500 text-xs text-left">Satuan</Text>
+                                    <Text className="flex-1 font-bold text-gray-500 text-xs text-center">Terpakai</Text>
+                                    <Text className="flex-1 font-bold text-gray-500 text-xs text-right">Tersedia</Text>
+                                </>
                             ) : (
                                 <>
                                     <Text className="flex-[2] font-bold text-gray-500 text-xs text-left">
                                         {selectedType === 'best_selling_menu' ? 'Nama Menu' : 'Nama Item'}
                                     </Text>
-                                    {selectedType === 'ingredient_expense' || selectedType === 'stock_usage' || selectedType === 'current_stock' ? (
-                                        <Text className="flex-1 font-bold text-gray-500 text-xs text-left">Unit</Text>
+                                    {selectedType === 'ingredient_expense' ? (
+                                        <Text className="flex-1 font-bold text-gray-500 text-xs text-left">satuan</Text>
                                     ) : null}
 
                                     <Text className="flex-1 font-bold text-gray-500 text-xs text-center">
                                         {selectedType === 'ingredient_expense' ? 'Qty' :
-                                            selectedType === 'best_selling_menu' ? 'Terjual' :
-                                                selectedType === 'stock_usage' ? 'Terpakai' :
-                                                    selectedType === 'current_stock' ? 'Status' : 'Freq'}
+                                            selectedType === 'best_selling_menu' ? 'Terjual' : 'Freq'}
                                     </Text>
-                                    <Text className="flex-[1.5] font-bold text-gray-500 text-xs text-right">
-                                        {selectedType === 'stock_usage' || selectedType === 'current_stock' ? 'Jml' : 'Total'}
-                                    </Text>
+                                    <Text className="flex-[1.5] font-bold text-gray-500 text-xs text-right">Total</Text>
                                 </>
                             )}
                         </View>
@@ -511,6 +490,19 @@ export default function ReportsScreen() {
                                                 {item.type === 'expense' ? '- ' : ''}Rp {(item.amount || 0).toLocaleString('id-ID')}
                                             </Text>
                                         </>
+                                    ) : selectedType === 'stock_report' ? (
+                                        <>
+                                            <Text className="flex-[2] text-gray-800 font-medium text-xs">{item.name}</Text>
+                                            <Text className="flex-1 text-gray-500 text-xs">{item.unit}</Text>
+                                            <Text className="flex-1 text-gray-800 font-bold text-xs text-center">{item.totalUsed}</Text>
+                                            <View className="flex-1 items-end">
+                                                <View className={`px-2 py-0.5 rounded-full ${item.status === 'Safe' ? 'bg-green-100' : item.status === 'Low' ? 'bg-yellow-100' : 'bg-red-100'}`}>
+                                                    <Text className={`text-[10px] font-bold ${item.status === 'Safe' ? 'text-green-700' : item.status === 'Low' ? 'text-yellow-700' : 'text-red-700'}`}>
+                                                        {item.currentStock} {item.status !== 'Safe' && '!'}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        </>
                                     ) : (
                                         <>
                                             <View className="flex-[2]">
@@ -518,31 +510,19 @@ export default function ReportsScreen() {
                                                 {selectedType === 'best_selling_menu' && <Text className="text-[10px] text-gray-400">{item.category}</Text>}
                                             </View>
 
-                                            {(selectedType === 'ingredient_expense' || selectedType === 'stock_usage' || selectedType === 'current_stock') && (
+                                            {selectedType === 'ingredient_expense' && (
                                                 <Text className="flex-1 text-gray-600 text-xs">{item.unit || '-'}</Text>
                                             )}
 
                                             <Text className="flex-1 text-gray-600 text-xs text-center">
                                                 {selectedType === 'ingredient_expense' ? (item.totalAmount ?? 0)
                                                     : selectedType === 'best_selling_menu' ? (item.qtySold ?? 0)
-                                                        : selectedType === 'stock_usage' ? ''
-                                                            : selectedType === 'current_stock' ? item.status
-                                                                : `${item.count ?? 0}x`}
+                                                        : `${item.count ?? 0}x`}
                                             </Text>
 
-                                            {selectedType === 'stock_usage' ? (
-                                                <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
-                                                    {item.totalUsed}
-                                                </Text>
-                                            ) : selectedType === 'current_stock' ? (
-                                                <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
-                                                    {item.currentStock}
-                                                </Text>
-                                            ) : (
-                                                <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
-                                                    Rp {(item.totalCost ?? item.totalRevenue ?? 0).toLocaleString('id-ID')}
-                                                </Text>
-                                            )}
+                                            <Text className="flex-[1.5] text-indigo-600 font-bold text-xs text-right">
+                                                Rp {(item.totalCost ?? item.totalRevenue ?? 0).toLocaleString('id-ID')}
+                                            </Text>
                                         </>
                                     )}
                                 </View>
@@ -550,7 +530,7 @@ export default function ReportsScreen() {
                         )}
 
                         {/* Footer Totals */}
-                        {data.length > 0 && selectedType !== 'net_revenue' && selectedType !== 'stock_usage' && selectedType !== 'current_stock' && (
+                        {data.length > 0 && selectedType !== 'net_revenue' && selectedType !== 'stock_report' && (
                             <View className="bg-indigo-50 p-3 flex-row justify-between items-center border-t border-indigo-100">
                                 <Text className="font-bold text-indigo-900">Total</Text>
                                 <Text className="font-bold text-indigo-900 text-base">

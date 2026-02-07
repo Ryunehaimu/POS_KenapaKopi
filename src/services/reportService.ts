@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as XLSX from 'xlsx';
 import { Alert } from "react-native";
 
-export type ReportType = 'ingredient_expense' | 'transaction_report' | 'best_selling_menu' | 'operational_expense' | 'net_revenue' | 'stock_usage' | 'current_stock';
+export type ReportType = 'ingredient_expense' | 'transaction_report' | 'best_selling_menu' | 'operational_expense' | 'net_revenue' | 'stock_report';
 
 export interface PaginatedResult<T> {
     data: T[];
@@ -48,11 +48,22 @@ interface BestSellingItem {
 }
 
 interface TransactionItem {
-    date: string; // Formatting date string
+    id: string;
     orderId: string;
-    customerName: string; // or 'Walk-in'
+    date: string;
+    customerName: string;
     paymentMethod: string;
     totalAmount: number;
+    status: string;
+    items: string; // Summarized items
+}
+
+export interface StockReportItem {
+    name: string;
+    unit: string;
+    totalUsed: number;
+    currentStock: number;
+    status: 'Safe' | 'Low' | 'Empty';
 }
 
 export const reportService = {
@@ -167,11 +178,14 @@ export const reportService = {
         if (error) throw error;
 
         const formattedData = (data || []).map((order: any) => ({
+            id: order.id,
             date: new Date(order.created_at).toLocaleString('id-ID'),
             orderId: `#${order.id.slice(0, 5).toUpperCase()}`,
             customerName: order.customer_name || 'Pelanggan',
             paymentMethod: order.payment_method || 'Tunai',
-            totalAmount: order.total_amount || 0
+            totalAmount: order.total_amount || 0,
+            status: order.status,
+            items: '-' // Items not fetched in this query
         }));
 
         const total = count || 0;
@@ -240,17 +254,32 @@ export const reportService = {
     },
 
     async getNetRevenueReport(startDate: Date, endDate: Date) {
-        // Net Revenue is always summary, 1 page
-        // ... (keep logic but maybe wrap return if needed, or leave since it's special)
+        // 1. Get Orders with Payment Method
+        const { data: orders } = await supabase
+            .from('orders')
+            .select('total_amount, payment_method')
+            .eq('status', 'completed')
+            .gte('created_at', startDate.toISOString())
+            .lte('created_at', endDate.toISOString());
 
-        // ... existing logic ...
-        // 1. Get Total Revenue
-        // NOTE: We need full data for aggregation, so we call internal/DB directly or pass high limit?
-        // Let's just do the aggregation calls similar to before.
+        let totalRevenue = 0;
+        let cash = 0;
+        let qris = 0;
+        let gojek = 0;
+        let grab = 0;
+        let shopee = 0;
 
-        // 1. Get Total Revenue
-        const { data: orders } = await supabase.from('orders').select('total_amount').eq('status', 'completed').gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
-        const totalRevenue = orders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
+        orders?.forEach((o: any) => {
+            const amount = o.total_amount || 0;
+            totalRevenue += amount;
+            const method = (o.payment_method || '').toLowerCase();
+
+            if (method === 'cash' || method === 'tunai') cash += amount;
+            else if (method === 'qris') qris += amount;
+            else if (method.includes('gojek')) gojek += amount;
+            else if (method.includes('grab')) grab += amount;
+            else if (method.includes('shopee')) shopee += amount;
+        });
 
         // 2. Ingredient Expenses
         const { data: stockLogs } = await supabase.from('stock_logs').select('price').eq('change_type', 'in').gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
@@ -264,98 +293,76 @@ export const reportService = {
         const totalExpense = totalIngExpense + totalOpExpense;
         const netRevenue = totalRevenue - totalExpense;
 
-        return [{
-            title: 'Pendapatan Kotor',
-            amount: totalRevenue,
-            type: 'income'
-        }, {
-            title: 'Pengeluaran Bahan',
-            amount: totalIngExpense,
-            type: 'expense'
-        }, {
-            title: 'Pengeluaran Operasional',
-            amount: totalOpExpense,
-            type: 'expense'
-        }, {
-            title: 'Penghasilan Bersih',
-            amount: netRevenue,
-            type: 'net'
-        }];
+        return [
+            { title: 'Pendapatan Tunai', amount: cash, type: 'income' },
+            { title: 'Pendapatan QRIS', amount: qris, type: 'income' },
+            { title: 'Pendapatan Gojek', amount: gojek, type: 'income' },
+            { title: 'Pendapatan Grab', amount: grab, type: 'income' },
+            { title: 'Pendapatan Shopee', amount: shopee, type: 'income' },
+            { title: 'Total Pendapatan Kotor', amount: totalRevenue, type: 'income_total' }, // Optional separator or specialized visual
+            { title: 'Pengeluaran Bahan', amount: totalIngExpense, type: 'expense' },
+            { title: 'Pengeluaran Operasional', amount: totalOpExpense, type: 'expense' },
+            { title: 'Penghasilan Bersih', amount: netRevenue, type: 'net' }
+        ];
     },
 
-    async getStockUsageReport(startDate: Date, endDate: Date, page: number = 1, limit: number = 10): Promise<PaginatedResult<StockUsageItem>> {
-        const { data, error } = await supabase
-            .from('stock_logs')
-            .select('change_amount, change_type, ingredients(name, unit)')
-            .in('change_type', ['out', 'transaction', 'adjustment']) // Include transaction, manual out, and adjustments
-            .gte('created_at', startDate.toISOString())
-            .lte('created_at', endDate.toISOString());
 
-        if (error) throw error;
 
-        const map = new Map<string, StockUsageItem>();
-
-        data?.forEach((log: any) => {
-            const name = log.ingredients?.name || 'Unknown';
-            const unit = log.ingredients?.unit || '-';
-            const amount = log.change_amount || 0;
-
-            if (!map.has(name)) {
-                map.set(name, { name, unit, totalUsed: 0 });
-            }
-            const item = map.get(name)!;
-            // Usage implies reduction, so we subtract the change amount.
-            // e.g. -50 (Usage) becomes +50 Used.
-            // e.g. +10 (Adjustment Gain) becomes -10 Used.
-            item.totalUsed -= amount;
-        });
-
-        const allItems = Array.from(map.values()).sort((a, b) => b.totalUsed - a.totalUsed);
-
-        const total = allItems.length;
-        const totalPages = Math.ceil(total / limit);
-        const paginatedData = allItems.slice((page - 1) * limit, page * limit);
-
-        return {
-            data: paginatedData,
-            total,
-            totalPages,
-            currentPage: page
-        };
-    },
-
-    async getCurrentStockReport(page: number = 1, limit: number = 10): Promise<PaginatedResult<CurrentStockItem>> {
+    async getStockReport(startDate: Date, endDate: Date, page: number = 1, limit: number = 10): Promise<PaginatedResult<StockReportItem>> {
         const from = (page - 1) * limit;
         const to = from + limit - 1;
 
-        const { data, error, count } = await supabase
+        // 1. Get Ingredients (Base Data) - Paginated
+        const { data: ingredients, error: ingError, count } = await supabase
             .from('ingredients')
             .select('*', { count: 'exact' })
             .order('name', { ascending: true })
             .range(from, to);
 
-        if (error) throw error;
+        if (ingError) throw ingError;
 
-        const formattedData = (data || []).map((item: any) => {
+        // 2. Get Usage (Stock Logs) for these ingredients within date range
+        const ingredientIds = ingredients?.map(i => i.id) || [];
+
+        const { data: logs, error: logsError } = await supabase
+            .from('stock_logs')
+            .select('ingredient_id, change_amount, change_type')
+            .in('ingredient_id', ingredientIds)
+            .in('change_type', ['out', 'transaction', 'adjustment']) // Usage types
+            .gte('created_at', startDate.toISOString())
+            .lte('created_at', endDate.toISOString());
+
+        if (logsError) throw logsError;
+
+        // 3. Map/Aggregate Usage
+        const usageMap = new Map<string, number>();
+        logs?.forEach((log: any) => {
+            const current = usageMap.get(log.ingredient_id) || 0;
+            if (log.change_amount < 0) {
+                usageMap.set(log.ingredient_id, current + Math.abs(log.change_amount));
+            }
+        });
+
+        // 4. Merge
+        const result: StockReportItem[] = ingredients?.map((item: any) => {
+            const used = usageMap.get(item.id) || 0;
             let status: 'Safe' | 'Low' | 'Empty' = 'Safe';
             if (item.current_stock <= 0) status = 'Empty';
-            else if (item.current_stock < 5) status = 'Low'; // Threshold could be dynamic
+            else if (item.current_stock < 5) status = 'Low';
 
             return {
                 name: item.name,
                 unit: item.unit,
+                totalUsed: used,
                 currentStock: item.current_stock,
                 status
             };
-        });
-
-        const total = count || 0;
-        const totalPages = Math.ceil(total / limit);
+        }) || [];
 
         return {
-            data: formattedData,
-            total,
-            totalPages,
+            data: result,
+            total: count || 0,
+            totalPages: Math.ceil((count || 0) / limit),
             currentPage: page
         };
     },

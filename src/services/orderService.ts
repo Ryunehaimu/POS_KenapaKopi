@@ -208,30 +208,65 @@ export const orderService = {
   },
 
   async getSalesReport(startDate: Date, endDate: Date) {
-    // Helper to format YYYY-MM-DD local time
-    const formatDate = (date: Date) => {
-      const offset = date.getTimezoneOffset() * 60000;
-      const localDate = new Date(date.getTime() - offset);
-      return localDate.toISOString().split('T')[0];
-    };
-
-    const { data, error } = await supabase.rpc('get_sales_report', {
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate)
-    });
+    // We fetch ALL completed orders for the period and aggregate manually
+    // because the RPC might not support the new payment methods yet or we want flexibility.
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select('total_amount, payment_method, orders_items:order_items(quantity, price, products(name))')
+      .eq('status', 'completed')
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString());
 
     if (error) throw error;
-    return data as {
-      total_revenue: number;
-      total_transactions: number;
-      cash_revenue: number;
-      qris_revenue: number;
-      menu_sales: {
-        product_name: string;
-        quantity_sold: number;
-        total_revenue: number;
-      }[];
+
+    const stats = {
+      total_revenue: 0,
+      total_transactions: orders?.length || 0,
+      cash_revenue: 0,
+      qris_revenue: 0,
+      gojek_revenue: 0,
+      grab_revenue: 0,
+      shopee_revenue: 0,
+      menu_sales: [] as any[]
     };
+
+    const menuMap = new Map<string, { quantity: number, revenue: number }>();
+
+    orders?.forEach((order: any) => {
+      const amount = order.total_amount || 0;
+      stats.total_revenue += amount;
+
+      const method = (order.payment_method || '').toLowerCase(); // Normalize
+      if (method === 'cash' || method === 'tunai') stats.cash_revenue += amount;
+      else if (method === 'qris') stats.qris_revenue += amount;
+      else if (method.includes('gojek')) stats.gojek_revenue += amount;
+      else if (method.includes('grab')) stats.grab_revenue += amount;
+      else if (method.includes('shopee')) stats.shopee_revenue += amount;
+      else {
+        // Fallback for others or if specific string logic fails, assume cash or just don't categorize? 
+        // For now let's assume if not matched it might be 'other' but user asked specifically for these 5.
+        // Maybe we just add to cash if unknown? or keep separate?
+        // Let's stick to what we requested.
+      }
+
+      // Menu Sales Aggregation
+      order.orders_items?.forEach((item: any) => {
+        const name = item.products?.name || 'Unknown';
+        const qty = item.quantity || 0;
+        const rev = (item.price || 0) * qty;
+
+        const current = menuMap.get(name) || { quantity: 0, revenue: 0 };
+        menuMap.set(name, { quantity: current.quantity + qty, revenue: current.revenue + rev });
+      });
+    });
+
+    stats.menu_sales = Array.from(menuMap.entries()).map(([name, val]) => ({
+      product_name: name,
+      quantity_sold: val.quantity,
+      total_revenue: val.revenue
+    })).sort((a, b) => b.total_revenue - a.total_revenue);
+
+    return stats;
   },
   async getProductRankings(startDate: Date, endDate: Date) {
     const formatDate = (date: Date) => {
