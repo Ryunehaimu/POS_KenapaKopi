@@ -10,6 +10,8 @@ export default function EditIngredientScreen() {
   const [name, setName] = useState('');
   const [type, setType] = useState('main');
   const [unit, setUnit] = useState('kg');
+  const [currentStock, setCurrentStock] = useState('0'); // New State
+  const [originalStock, setOriginalStock] = useState(0); // To track changes
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
@@ -24,6 +26,8 @@ export default function EditIngredientScreen() {
              setName(data.name);
              setType(data.type);
              setUnit(data.unit);
+             setCurrentStock(data.current_stock?.toString() || '0');
+             setOriginalStock(data.current_stock || 0);
          }
      } catch (e) {
          console.error(e);
@@ -37,11 +41,20 @@ export default function EditIngredientScreen() {
   const handleSave = async () => {
     try {
       setLoading(true);
+
+      // 1. Update Basic Info
       await inventoryService.updateIngredient(id as string, {
           name,
           type: type as 'main' | 'support',
           unit: unit as 'kg' | 'gr' | 'ltr' | 'ml' | 'pcs'
       });
+
+      // 2. Handle Stock Adjustment if changed
+      const newStockVal = parseFloat(currentStock);
+      if (!isNaN(newStockVal) && newStockVal !== originalStock) {
+         await inventoryService.adjustStock(id as string, newStockVal);
+      }
+
       Alert.alert('Sukses', 'Data bahan berhasil diperbarui', [
         { text: 'OK', onPress: () => router.back() }
       ]);
@@ -88,6 +101,13 @@ export default function EditIngredientScreen() {
             { label: 'ML', value: 'ml' },
             { label: 'Pcs', value: 'pcs' }
         ]
+    },
+    {
+        label: "Stok Saat Ini (Adjustment)",
+        value: currentStock,
+        onChangeText: setCurrentStock,
+        placeholder: "0",
+        keyboardType: 'numeric'
     }
   ];
 

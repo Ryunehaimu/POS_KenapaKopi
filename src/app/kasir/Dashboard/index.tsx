@@ -38,6 +38,7 @@ export default function KasirDashboard() {
     gojek_revenue: number;
     grab_revenue: number;
     shopee_revenue: number;
+    transfer_revenue: number;
     menu_sales: {
       product_name: string;
       quantity_sold: number;
@@ -51,6 +52,7 @@ export default function KasirDashboard() {
     gojek_revenue: 0,
     grab_revenue: 0,
     shopee_revenue: 0,
+    transfer_revenue: 0,
     menu_sales: []
   });
 
@@ -159,13 +161,14 @@ export default function KasirDashboard() {
           <h1>Laporan Penjualan</h1>
           <h3>${shiftLabel} - ${new Date().toLocaleDateString('id-ID')}</h3>
           <hr/>
-          <div class="row"><span>Tunai:</span><span>Rp ${dailyStats.cash_revenue.toLocaleString()}</span></div>
-          <div class="row"><span>QRIS:</span><span>Rp ${dailyStats.qris_revenue.toLocaleString()}</span></div>
-          <div class="row"><span>Gojek:</span><span>Rp ${dailyStats.gojek_revenue.toLocaleString()}</span></div>
-          <div class="row"><span>Grab:</span><span>Rp ${dailyStats.grab_revenue.toLocaleString()}</span></div>
-          <div class="row"><span>Shopee:</span><span>Rp ${dailyStats.shopee_revenue.toLocaleString()}</span></div>
+          <div class="row"><span>Tunai:</span><span>Rp ${(dailyStats.cash_revenue || 0).toLocaleString()}</span></div>
+          <div class="row"><span>QRIS:</span><span>Rp ${(dailyStats.qris_revenue || 0).toLocaleString()}</span></div>
+          <div class="row"><span>Gojek:</span><span>Rp ${(dailyStats.gojek_revenue || 0).toLocaleString()}</span></div>
+          <div class="row"><span>Grab:</span><span>Rp ${(dailyStats.grab_revenue || 0).toLocaleString()}</span></div>
+          <div class="row"><span>Shopee:</span><span>Rp ${(dailyStats.shopee_revenue || 0).toLocaleString()}</span></div>
+          <div class="row"><span>Transfer:</span><span>Rp ${(dailyStats.transfer_revenue || 0).toLocaleString()}</span></div>
           <hr/>
-          <div class="row total"><span>TOTAL:</span><span>Rp ${dailyStats.total_revenue.toLocaleString()}</span></div>
+          <div class="row total"><span>TOTAL:</span><span>Rp ${(dailyStats.total_revenue || 0).toLocaleString()}</span></div>
           <div class="row"><span>Transaksi:</span><span>${dailyStats.total_transactions}</span></div>
         </body>
       </html>
@@ -287,7 +290,7 @@ export default function KasirDashboard() {
               )}
 
               <View className="flex-row justify-between items-end">
-                <Text className="text-4xl font-bold text-gray-900">Rp {dailyStats.total_revenue.toLocaleString()}</Text>
+                <Text className="text-4xl font-bold text-gray-900">Rp {(dailyStats.total_revenue || 0).toLocaleString()}</Text>
                 <View className="flex-row items-center space-x-1">
                   <Text className="text-xs font-bold text-gray-900">Total</Text>
                   <TrendingUp color="black" size={14} />
@@ -298,23 +301,27 @@ export default function KasirDashboard() {
               <View className="flex-row flex-wrap mt-4 gap-2">
                 <View className="bg-white px-3 py-1 rounded-lg">
                   <Text className="text-xs text-gray-500">Tunai</Text>
-                  <Text className="text-sm font-bold text-gray-800">Rp {dailyStats.cash_revenue.toLocaleString()}</Text>
+                  <Text className="text-sm font-bold text-gray-800">Rp {(dailyStats.cash_revenue || 0).toLocaleString()}</Text>
                 </View>
                 <View className="bg-white px-3 py-1 rounded-lg">
                   <Text className="text-xs text-gray-500">QRIS</Text>
-                  <Text className="text-sm font-bold text-gray-800">Rp {dailyStats.qris_revenue.toLocaleString()}</Text>
+                  <Text className="text-sm font-bold text-gray-800">Rp {(dailyStats.qris_revenue || 0).toLocaleString()}</Text>
                 </View>
                 <View className="bg-green-50 px-3 py-1 rounded-lg border border-green-200">
                   <Text className="text-xs text-green-600">Gojek</Text>
-                  <Text className="text-sm font-bold text-green-700">Rp {dailyStats.gojek_revenue.toLocaleString()}</Text>
+                  <Text className="text-sm font-bold text-green-700">Rp {(dailyStats.gojek_revenue || 0).toLocaleString()}</Text>
                 </View>
                 <View className="bg-green-50 px-3 py-1 rounded-lg border border-green-200">
                   <Text className="text-xs text-green-600">Grab</Text>
-                  <Text className="text-sm font-bold text-green-700">Rp {dailyStats.grab_revenue.toLocaleString()}</Text>
+                  <Text className="text-sm font-bold text-green-700">Rp {(dailyStats.grab_revenue || 0).toLocaleString()}</Text>
                 </View>
                 <View className="bg-orange-50 px-3 py-1 rounded-lg border border-orange-200">
                   <Text className="text-xs text-orange-600">Shopee</Text>
-                  <Text className="text-sm font-bold text-orange-700">Rp {dailyStats.shopee_revenue.toLocaleString()}</Text>
+                  <Text className="text-sm font-bold text-orange-700">Rp {(dailyStats.shopee_revenue || 0).toLocaleString()}</Text>
+                </View>
+                <View className="bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-200">
+                  <Text className="text-xs text-indigo-600">Transfer</Text>
+                  <Text className="text-sm font-bold text-indigo-700">Rp {(dailyStats.transfer_revenue || 0).toLocaleString()}</Text>
                 </View>
               </View>
             </View>

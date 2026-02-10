@@ -18,7 +18,7 @@ export interface Order {
   note?: string;
   total_amount: number;
   status: 'pending' | 'completed' | 'cancelled';
-  payment_method: 'cash' | 'qris';
+  payment_method: 'cash' | 'qris' | 'transfer';
   created_at?: string;
   discount?: number; // Added discount field
   discount_type?: 'percent' | 'nominal';
@@ -93,7 +93,7 @@ export const orderService = {
     }
 
     if (paymentMethod && paymentMethod !== 'All') {
-      const method = paymentMethod === 'QRIS' ? 'qris' : 'cash';
+      const method = paymentMethod === 'QRIS' ? 'qris' : paymentMethod === 'Transfer' ? 'transfer' : 'cash';
       query = query.eq('payment_method', method);
     }
 
@@ -166,6 +166,7 @@ export const orderService = {
       gojek_revenue: number;
       grab_revenue: number;
       shopee_revenue: number;
+      transfer_revenue: number;
       menu_sales: {
         product_name: string;
         category: string;
@@ -198,6 +199,7 @@ export const orderService = {
       gojek_revenue: number;
       grab_revenue: number;
       shopee_revenue: number;
+      transfer_revenue: number;
       menu_sales: {
         product_name: string;
         category: string;
@@ -227,6 +229,7 @@ export const orderService = {
       gojek_revenue: 0,
       grab_revenue: 0,
       shopee_revenue: 0,
+      transfer_revenue: 0,
       menu_sales: [] as any[]
     };
 
@@ -242,6 +245,7 @@ export const orderService = {
       else if (method.includes('gojek')) stats.gojek_revenue += amount;
       else if (method.includes('grab')) stats.grab_revenue += amount;
       else if (method.includes('shopee')) stats.shopee_revenue += amount;
+      else if (method.includes('transfer')) stats.transfer_revenue += amount;
       else {
         // Fallback for others or if specific string logic fails, assume cash or just don't categorize? 
         // For now let's assume if not matched it might be 'other' but user asked specifically for these 5.
@@ -295,7 +299,7 @@ export const orderService = {
     updates: {
       customer_name?: string;
       note?: string;
-      payment_method?: 'cash' | 'qris';
+      payment_method?: 'cash' | 'qris' | 'transfer';
       status?: 'pending' | 'completed' | 'cancelled';
       total_amount?: number;
       discount?: number; // Added discount
@@ -378,7 +382,7 @@ export const orderService = {
     return true;
   },
 
-  async payOrder(orderId: string, paymentMethod: 'cash' | 'qris', totalAmount: number, discount?: number, discountType?: 'percent' | 'nominal', discountRate?: number) {
+  async payOrder(orderId: string, paymentMethod: 'cash' | 'qris' | 'transfer', totalAmount: number, discount?: number, discountType?: 'percent' | 'nominal', discountRate?: number) {
     const { data, error } = await supabase
       .from('orders')
       .update({

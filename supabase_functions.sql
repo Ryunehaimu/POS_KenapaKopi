@@ -118,6 +118,7 @@ declare
     v_gojek_revenue numeric;
     v_grab_revenue numeric;
     v_shopee_revenue numeric;
+    v_transfer_revenue numeric;
     v_menu_sales json;
 begin
     -- 1. Calculate Totals with all payment methods
@@ -128,7 +129,8 @@ begin
         coalesce(sum(case when payment_method = 'qris' then total_amount else 0 end), 0),
         coalesce(sum(case when payment_method = 'gojek' then total_amount else 0 end), 0),
         coalesce(sum(case when payment_method = 'grab' then total_amount else 0 end), 0),
-        coalesce(sum(case when payment_method = 'shopee' then total_amount else 0 end), 0)
+        coalesce(sum(case when payment_method = 'shopee' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'transfer' then total_amount else 0 end), 0)
     into 
         v_total_revenue,
         v_total_transactions,
@@ -136,7 +138,8 @@ begin
         v_qris_revenue,
         v_gojek_revenue,
         v_grab_revenue,
-        v_shopee_revenue
+        v_shopee_revenue,
+        v_transfer_revenue
     from orders
     where date(created_at AT TIME ZONE 'Asia/Jakarta') = report_date 
     and status = 'completed';
@@ -169,6 +172,7 @@ begin
         'gojek_revenue', v_gojek_revenue,
         'grab_revenue', v_grab_revenue,
         'shopee_revenue', v_shopee_revenue,
+        'transfer_revenue', v_transfer_revenue,
         'menu_sales', coalesce(v_menu_sales, '[]'::json)
     );
 end;
@@ -188,6 +192,7 @@ declare
     v_gojek_revenue numeric;
     v_grab_revenue numeric;
     v_shopee_revenue numeric;
+    v_transfer_revenue numeric;
     v_menu_sales json;
 begin
     -- 1. Calculate Totals with all payment methods for the time range
@@ -198,7 +203,8 @@ begin
         coalesce(sum(case when payment_method = 'qris' then total_amount else 0 end), 0),
         coalesce(sum(case when payment_method = 'gojek' then total_amount else 0 end), 0),
         coalesce(sum(case when payment_method = 'grab' then total_amount else 0 end), 0),
-        coalesce(sum(case when payment_method = 'shopee' then total_amount else 0 end), 0)
+        coalesce(sum(case when payment_method = 'shopee' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'transfer' then total_amount else 0 end), 0)
     into 
         v_total_revenue,
         v_total_transactions,
@@ -206,7 +212,8 @@ begin
         v_qris_revenue,
         v_gojek_revenue,
         v_grab_revenue,
-        v_shopee_revenue
+        v_shopee_revenue,
+        v_transfer_revenue
     from orders
     where (created_at AT TIME ZONE 'Asia/Jakarta') >= start_time
     and (created_at AT TIME ZONE 'Asia/Jakarta') <= end_time
@@ -241,6 +248,7 @@ begin
         'gojek_revenue', v_gojek_revenue,
         'grab_revenue', v_grab_revenue,
         'shopee_revenue', v_shopee_revenue,
+        'transfer_revenue', v_transfer_revenue,
         'menu_sales', coalesce(v_menu_sales, '[]'::json)
     );
 end;
@@ -258,6 +266,7 @@ declare
     v_total_transactions int;
     v_cash_revenue numeric;
     v_qris_revenue numeric;
+    v_transfer_revenue numeric;
     v_menu_sales json;
 begin
     -- 1. Calculate Totals
@@ -265,12 +274,14 @@ begin
         coalesce(sum(total_amount), 0),
         count(id),
         coalesce(sum(case when payment_method = 'cash' then total_amount else 0 end), 0),
-        coalesce(sum(case when payment_method = 'qris' then total_amount else 0 end), 0)
+        coalesce(sum(case when payment_method = 'qris' then total_amount else 0 end), 0),
+        coalesce(sum(case when payment_method = 'transfer' then total_amount else 0 end), 0)
     into 
         v_total_revenue,
         v_total_transactions,
         v_cash_revenue,
-        v_qris_revenue
+        v_qris_revenue,
+        v_transfer_revenue
     from orders
     where date(created_at AT TIME ZONE 'Asia/Jakarta') between start_date and end_date
     and status = 'completed';
@@ -300,6 +311,7 @@ begin
         'total_transactions', v_total_transactions,
         'cash_revenue', v_cash_revenue,
         'qris_revenue', v_qris_revenue,
+        'transfer_revenue', v_transfer_revenue,
         'menu_sales', coalesce(v_menu_sales, '[]'::json)
     );
 end;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform, Keyboard } from 'react-native';
-import { X, Check, Printer, QrCode, Banknote } from 'lucide-react-native';
+import { X, Check, Printer, QrCode, Banknote, ArrowRightLeft } from 'lucide-react-native';
 import { formatRupiah, parseRupiah } from '../../utils/currency';
 
 interface PaymentModalProps {
@@ -9,7 +9,7 @@ interface PaymentModalProps {
   subtotal: number;
   onConfirm: (
     finalAmount: number,
-    paymentMethod: 'cash' | 'qris',
+    paymentMethod: 'cash' | 'qris' | 'transfer',
     discount: number,
     cashReceived?: number,
     change?: number,
@@ -22,7 +22,7 @@ interface PaymentModalProps {
 export const PaymentModal = ({ visible, onClose, subtotal, onConfirm, loading }: PaymentModalProps) => {
   const [discountType, setDiscountType] = useState<'percent' | 'nominal'>('nominal');
   const [discountValue, setDiscountValue] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'transfer'>('cash');
   const [cashReceived, setCashReceived] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -182,6 +182,14 @@ export const PaymentModal = ({ visible, onClose, subtotal, onConfirm, loading }:
                   <QrCode size={20} color={paymentMethod === 'qris' ? '#4F46E5' : '#9CA3AF'} />
                   <Text className={`font-bold ml-2 ${paymentMethod === 'qris' ? 'text-indigo-700' : 'text-gray-500'}`}>QRIS</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setPaymentMethod('transfer')}
+                  className={`flex-1 p-3 rounded-xl border-2 flex-row items-center justify-center ${paymentMethod === 'transfer' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 bg-gray-50'}`}
+                >
+                  <ArrowRightLeft size={20} color={paymentMethod === 'transfer' ? '#4F46E5' : '#9CA3AF'} />
+                  <Text className={`font-bold ml-2 ${paymentMethod === 'transfer' ? 'text-indigo-700' : 'text-gray-500'}`}>Transfer</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Method Specific Content */}
@@ -208,11 +216,18 @@ export const PaymentModal = ({ visible, onClose, subtotal, onConfirm, loading }:
                     </Text>
                   </View>
                 </View>
-              ) : (
+              ) : paymentMethod === 'qris' ? (
                 <View className="mb-3 items-center">
                   <View className="w-32 h-32 bg-gray-200 rounded-xl items-center justify-center mb-2">
                     <QrCode size={48} color="#4B5563" />
                     <Text className="text-gray-400 text-xs mt-1">QRIS</Text>
+                  </View>
+                </View>
+              ) : (
+                 <View className="mb-3 items-center">
+                  <View className="w-32 h-32 bg-gray-200 rounded-xl items-center justify-center mb-2">
+                    <ArrowRightLeft size={48} color="#4B5563" />
+                    <Text className="text-gray-400 text-xs mt-1">Bukti Transfer</Text>
                   </View>
                 </View>
               )}
@@ -229,7 +244,7 @@ export const PaymentModal = ({ visible, onClose, subtotal, onConfirm, loading }:
                   <>
                     <Printer color="white" size={18} />
                     <Text className="text-white font-bold ml-2">
-                      {paymentMethod === 'qris' ? 'Konfirmasi & Print' : 'Bayar & Print'}
+                      {paymentMethod === 'cash' ? 'Bayar & Print' : 'Konfirmasi & Print'}
                     </Text>
                   </>
                 )}
