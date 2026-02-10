@@ -3,7 +3,7 @@
     "name": "POS Kenapa Kopi",
     "scheme": "pos-kenapa-kop",
     "slug": "pos-kenapa-kopi",
-    "version": "1.0.0",
+    "version": "1.3.1",
     "orientation": "landscape",
     "icon": "./assets/icon-custom.png",
     "userInterfaceStyle": "light",
