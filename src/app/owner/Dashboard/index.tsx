@@ -7,11 +7,12 @@ import { Home, FileText, UserCheck, LogOut, ChevronRight } from 'lucide-react-na
 import { inventoryService, Ingredient } from '../../../services/inventoryService';
 import { shiftService, Shift } from '../../../services/shiftService';
 import * as Print from 'expo-print';
-import { TrendingUp, Printer, ChevronDown } from 'lucide-react-native';
+import { TrendingUp, Printer, ChevronDown, Calendar } from 'lucide-react-native';
 import { authService } from '../../../services/authService';
 import OwnerBottomNav from '../../../components/OwnerBottomNav';
 import { orderService } from '../../../services/orderService';
 import { attendanceService } from '../../../services/attendanceService';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const MENU_ITEMS = [
   { name: "Stock Opname", icon: require("../../../../assets/Stock Opname.png") },
@@ -85,11 +86,15 @@ export default function OwnerDashboard() {
   const [selectedShift, setSelectedShift] = useState<string>('today');
   const [shiftDropdownOpen, setShiftDropdownOpen] = useState(false);
 
+  // Date Selection State
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
   // Attendance State
   const [attendanceCount, setAttendanceCount] = useState(0);
   const [totalEmployees, setTotalEmployees] = useState(0); // Optional: to show /Total
 
-  const loadData = async () => {
+  const loadData = async (date: Date = selectedDate) => {
     try {
       setLoading(true);
 
@@ -99,8 +104,6 @@ export default function OwnerDashboard() {
       const isCaptain = email.toLowerCase().startsWith("captain");
       setUserRole(isCaptain ? 'captain' : 'owner');
 
-      const now = new Date();
-
       // 1. Daily One-Time Data
       // 1. Fetch Shifts
       const shiftsData = await shiftService.getShifts();
@@ -109,32 +112,32 @@ export default function OwnerDashboard() {
       // 2. Daily Stats with Shift Logic
       let statsData;
       if (selectedShift === 'today') {
-        statsData = await orderService.getDailyReport(now);
+        statsData = await orderService.getDailyReport(date);
       } else {
         const selectedShiftData = shiftsData.find(s => s.id === selectedShift);
         if (selectedShiftData) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+          const shiftDate = new Date(date);
+          shiftDate.setHours(0, 0, 0, 0);
           const [startHour, startMinute] = selectedShiftData.start_time.split(':').map(Number);
           const [endHour, endMinute] = selectedShiftData.end_time.split(':').map(Number);
 
-          const startTime = new Date(today);
+          const startTime = new Date(shiftDate);
           startTime.setHours(startHour, startMinute, 0, 0);
 
-          const endTime = new Date(today);
+          const endTime = new Date(shiftDate);
           endTime.setHours(endHour, endMinute, 0, 0);
 
           statsData = await orderService.getShiftReport(startTime, endTime);
         } else {
-          statsData = await orderService.getDailyReport(now);
+          statsData = await orderService.getDailyReport(date);
         }
       }
       setDailyStats(statsData);
 
       // 2. Monthly Revenue
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
       // orderService.getSalesReport handles date formatting internally now
-      const monthlyData = await orderService.getSalesReport(startOfMonth, now);
+      const monthlyData = await orderService.getSalesReport(startOfMonth, date);
       setMonthlyStats({
         total_revenue: monthlyData.total_revenue,
         cash_revenue: monthlyData.cash_revenue,
@@ -160,11 +163,20 @@ export default function OwnerDashboard() {
     }
   };
 
+  const onDateChange = (event: any, selected: Date | undefined) => {
+    setShowDatePicker(false);
+    if (selected) {
+      setSelectedDate(selected);
+      // Reload logic handled by useEffect on selectedDate or manual call
+      loadData(selected);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-      loadData();
-    }, [selectedShift]) // Reload when shift changes
+      loadData(selectedDate);
+    }, [selectedShift, selectedDate]) // Reload when shift or date changes
   );
 
   const printShiftReport = async () => {
@@ -231,12 +243,31 @@ export default function OwnerDashboard() {
         {/* 2. SUMMARY CARDS (Overlapping Header) */}
         <View className="px-6 -mt-16">
 
-          {/* Detailed Revenue Card (Like Cashier) - HIDDEN FOR CAPTAIN */}
-          {userRole === 'owner' ? (
+          {/* Detailed Revenue Card (Like Cashier) - Visible for Owner & Captain */}
+          {(userRole === 'owner' || userRole === 'captain') ? (
             <View className="bg-white rounded-xl shadow-sm p-4 mb-4 z-50">
               <View className="flex-row justify-between items-center mb-4">
                 <Text className="text-gray-500 text-sm font-medium">Pendapatan Transaksi</Text>
+                {/* Date Picker Button */}
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  className="bg-gray-50 px-3 py-1 rounded-lg border border-gray-100 flex-row items-center"
+                >
+                  <Calendar color="black" size={12} />
+                  <Text className="text-xs font-medium text-gray-700 ml-1">
+                    {selectedDate.toLocaleDateString('id-ID')}
+                  </Text>
+                </TouchableOpacity>
               </View>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={selectedDate}
+                  mode="date"
+                  display="default"
+                  onChange={onDateChange}
+                />
+              )}
 
               {shiftDropdownOpen && (
                 <View className="absolute right-4 top-12 bg-white rounded-lg shadow-lg border border-gray-200 z-50 min-w-[150px]">
@@ -306,11 +337,7 @@ export default function OwnerDashboard() {
                 </View>
               </View>
             </View>
-          ) : (
-            <View className="bg-white/10 rounded-xl p-4 mb-4 border-2 border-dashed border-white/30 justify-center items-center">
-              <Text className="text-white font-bold opacity-80">Pendapatan Hidden</Text>
-            </View>
-          )}
+          ) : null}
 
           <View className="flex-row gap-4 mb-8">
             {/* Card 1: Transaksi Hari Ini */}

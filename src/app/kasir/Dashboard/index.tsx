@@ -9,8 +9,10 @@ import {
   Edit2,
   X,
   Check,
-  Printer
+  Printer,
+  Calendar
 } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import KasirSidebar from '../../../components/KasirSidebar';
 import { inventoryService, Ingredient } from '../../../services/inventoryService';
@@ -56,6 +58,10 @@ export default function KasirDashboard() {
     menu_sales: []
   });
 
+  // Date Selection State
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
   // Shift State - now uses dynamic shifts from database
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [selectedShift, setSelectedShift] = useState<string>('today'); // 'today' or shift ID
@@ -72,11 +78,10 @@ export default function KasirDashboard() {
   });
   const [lowStockItems, setLowStockItems] = useState<Ingredient[]>([]);
 
-  const loadData = async (shiftId: string = 'today') => {
+  const loadData = async (shiftId: string = selectedShift, date: Date = selectedDate) => {
     try {
       setLoading(true);
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
 
       // Fetch shifts from database
       const shiftsData = await shiftService.getShifts();
@@ -85,35 +90,35 @@ export default function KasirDashboard() {
       // Calculate shift time ranges based on selected shift
       let statsData;
       if (shiftId === 'today') {
-        statsData = await orderService.getDailyReport(now);
+        statsData = await orderService.getDailyReport(date);
       } else {
         // Find the selected shift
         const selectedShiftData = shiftsData.find(s => s.id === shiftId);
         
         if (selectedShiftData) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+          const shiftDate = new Date(date);
+          shiftDate.setHours(0, 0, 0, 0);
           
           // Parse start_time and end_time from shift data (format: "HH:mm:ss")
           const [startHour, startMinute] = selectedShiftData.start_time.split(':').map(Number);
           const [endHour, endMinute] = selectedShiftData.end_time.split(':').map(Number);
           
-          const startTime = new Date(today);
+          const startTime = new Date(shiftDate);
           startTime.setHours(startHour, startMinute, 0, 0);
           
-          const endTime = new Date(today);
+          const endTime = new Date(shiftDate);
           endTime.setHours(endHour, endMinute, 0, 0);
           
           statsData = await orderService.getShiftReport(startTime, endTime);
         } else {
           // Fallback to daily report
-          statsData = await orderService.getDailyReport(now);
+          statsData = await orderService.getDailyReport(date);
         }
       }
 
       const [ingData, monthlyData, lowStockData] = await Promise.all([
         inventoryService.getIngredients(),
-        orderService.getSalesReport(startOfMonth, now),
+        orderService.getSalesReport(startOfMonth, date),
         inventoryService.getLowStockIngredients(5)
       ]);
 
@@ -137,12 +142,23 @@ export default function KasirDashboard() {
     }
   };
 
+  const onDateChange = (event: any, selected: Date | undefined) => {
+    setShowDatePicker(false);
+    if (selected) {
+      setSelectedDate(selected);
+      // Reload data with new date
+      loadData(selectedShift, selected);
+    }
+  };
+
   // Print Shift Report
   const printShiftReport = async () => {
     // Get shift label from database or use 'Hari Ini'
     const selectedShiftData = shifts.find(s => s.id === selectedShift);
+    const dateStr = selectedDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    
     const shiftLabel = selectedShift === 'today' 
-      ? 'Hari Ini (Semua)' 
+      ? `Harian (Semua Shift)` 
       : selectedShiftData 
         ? `${selectedShiftData.name} (${selectedShiftData.start_time.slice(0, 5)} - ${selectedShiftData.end_time.slice(0, 5)})`
         : 'Shift';
@@ -159,7 +175,8 @@ export default function KasirDashboard() {
         </head>
         <body>
           <h1>Laporan Penjualan</h1>
-          <h3>${shiftLabel} - ${new Date().toLocaleDateString('id-ID')}</h3>
+          <h3>${shiftLabel}</h3>
+          <p style="text-align: center; color: #666; margin-top: -10px;">${dateStr}</p>
           <hr/>
           <div class="row"><span>Tunai:</span><span>Rp ${(dailyStats.cash_revenue || 0).toLocaleString()}</span></div>
           <div class="row"><span>QRIS:</span><span>Rp ${(dailyStats.qris_revenue || 0).toLocaleString()}</span></div>
@@ -228,6 +245,26 @@ export default function KasirDashboard() {
               <View className="flex-row justify-between items-center mb-4">
                 <Text className="text-gray-500 text-sm font-medium">Pendapatan Transaksi</Text>
                 <View className="flex-row items-center gap-2">
+                  {/* Date Picker Button */}
+                  <TouchableOpacity 
+                    onPress={() => setShowDatePicker(true)}
+                    className="bg-white px-3 py-1 rounded-lg border border-gray-200 flex-row items-center ml-2"
+                  >
+                    <Calendar color="black" size={14} />
+                    <Text className="text-xs font-medium text-gray-700 ml-1">
+                      {selectedDate.toLocaleDateString('id-ID')}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={selectedDate}
+                      mode="date"
+                      display="default"
+                      onChange={onDateChange}
+                    />
+                  )}
+
                   {/* Print Button */}
                   <TouchableOpacity 
                     onPress={printShiftReport}
@@ -258,7 +295,7 @@ export default function KasirDashboard() {
                     onPress={() => {
                       setSelectedShift('today');
                       setShiftDropdownOpen(false);
-                      loadData('today');
+                      loadData('today', selectedDate);
                     }}
                     className={`px-4 py-2 border-b border-gray-100 ${selectedShift === 'today' ? 'bg-indigo-50' : ''}`}
                   >
@@ -274,7 +311,7 @@ export default function KasirDashboard() {
                       onPress={() => {
                         setSelectedShift(shift.id);
                         setShiftDropdownOpen(false);
-                        loadData(shift.id);
+                        loadData(shift.id, selectedDate);
                       }}
                       className={`px-4 py-2 border-b border-gray-100 ${selectedShift === shift.id ? 'bg-indigo-50' : ''}`}
                     >
